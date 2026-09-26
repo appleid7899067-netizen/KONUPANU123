@@ -35,6 +35,7 @@ export function AppShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
+  const [diffScope, setDiffScope] = useState<"last" | "branch">("last");
   const cancelRef = useRef(false);
 
   useEffect(() => {
@@ -288,7 +289,7 @@ export function AppShell() {
         <aside className="hidden w-[330px] shrink-0 border-l border-border bg-surface xl:flex xl:flex-col">
           <div className="flex h-14 items-center justify-between border-b border-border px-4">
             <div><p className="text-sm font-medium text-fg">Workspace</p><p className="text-[11px] text-muted">BOSSNU Agent</p></div>
-            <Button variant="ghost" size="icon-sm" aria-label="Close workspace" onClick={() => setWorkspaceOpen(false)}><X className="size-4" /></Button>
+            <div className="flex items-center gap-1"><Button variant="ghost" size="icon-sm" aria-label="Download workspace" title="Download workspace"><Upload className="size-4 rotate-180" /></Button><Button variant="ghost" size="icon-sm" aria-label="Workspace settings"><Settings2 className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Close workspace" onClick={() => setWorkspaceOpen(false)}><X className="size-4" /></Button></div>
           </div>
           <div className="grid grid-cols-4 border-b border-border">
             {(["workspace","diff","checks","preview"] as const).map((id) => (
@@ -296,7 +297,15 @@ export function AppShell() {
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {workspaceTab === "workspace" ? (
+            {workspaceTab === "diff" ? (
+              <div>
+                <div className="mb-3 flex rounded-md bg-elevated p-0.5">
+                  <button type="button" onClick={() => setDiffScope("last")} className={diffScope === "last" ? "flex-1 rounded-sm bg-surface px-2 py-1.5 text-[11px] text-fg" : "flex-1 rounded-sm px-2 py-1.5 text-[11px] text-muted"}>Last turn</button>
+                  <button type="button" onClick={() => setDiffScope("branch")} className={diffScope === "branch" ? "flex-1 rounded-sm bg-surface px-2 py-1.5 text-[11px] text-fg" : "flex-1 rounded-sm px-2 py-1.5 text-[11px] text-muted"}>Full branch</button>
+                </div>
+                <div className="rounded-lg bg-elevated/50 p-6 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-3 text-sm text-fg">No changes yet</p><p className="mt-1 text-xs text-muted">The {diffScope === "last" ? "latest turn" : "working branch"} diff will appear here.</p></div>
+              </div>
+            ) : workspaceTab === "workspace" ? (
               <div className="space-y-4">
                 <div className="rounded-lg bg-elevated p-4">
                   <div className="flex items-center gap-2 text-sm font-medium"><GitBranch className="size-4" /> Repository</div>
