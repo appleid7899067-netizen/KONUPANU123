@@ -288,3 +288,20 @@ export function AppShell() {
               </div>
             )}
           </div>
+        </aside>
+      ) : null}
+
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent side="left" title="BOSSNU" className="w-[280px] p-0">
+          <Sidebar t={t} conversations={conversations} activeId={activeId} onNew={() => { newChat(); setNavOpen(false); }} onSelect={(id) => { selectChat(id); setNavOpen(false); }} onDelete={deleteChat} footer={footer} />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={modelsOpen} onOpenChange={setModelsOpen}>
+        <SheetContent side="right" title="Models" className="w-[min(100%,30rem)] p-0">
+          <ModelPicker models={models} selectedId={model?.id ?? modelId} featured={featured} t={t} onSelect={(id) => { setModelId(id); setModelsOpen(false); }} />
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
