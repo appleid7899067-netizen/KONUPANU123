@@ -146,12 +146,14 @@ export function AppShell() {
   });
 
   const connectGitHubRepository = async () => {
-    const match = repoInput.trim().match(/^(?:https?:\\/\\/github\\.com\\/)?([^\\/\\s]+)\\/([^\\/\\s#]+?)(?:\\.git)?(?:#.*)?$/);
-    if (!match) {
+    const cleanedRepo = repoInput.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+    const repoParts = cleanedRepo.split("/").filter(Boolean);
+    const owner = repoParts[0];
+    const repo = repoParts[1];
+    if (!owner || !repo) {
       setWorkspaceNotice("ใส่ repo แบบ owner/name เช่น appleid7899067-netizen/KONUPANU123");
       return;
     }
-    const [, owner, repo] = match;
     const branch = repoBranch.trim() || "main";
     setRepoLoading(true);
     setWorkspaceNotice("กำลังเชื่อม GitHub และโหลดไฟล์จริง…");
@@ -191,9 +193,11 @@ export function AppShell() {
   };
 
   const refreshGitHubState = async () => {
-    const match = repoInput.trim().match(/^(?:https?:\\/\\/github\\.com\\/)?([^\\/\\s]+)\\/([^\\/\\s#]+?)(?:\\.git)?(?:#.*)?$/);
-    if (!match) return;
-    const [, owner, repo] = match;
+    const cleanedRepo = repoInput.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+    const repoParts = cleanedRepo.split("/").filter(Boolean);
+    const owner = repoParts[0];
+    const repo = repoParts[1];
+    if (!owner || !repo) return;
     const branch = repoBranch.trim() || "main";
     setChecksLoading(true);
     try {
