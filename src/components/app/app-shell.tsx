@@ -35,6 +35,7 @@ export function AppShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
   const [diffScope, setDiffScope] = useState<"last" | "branch">("last");
@@ -363,6 +364,46 @@ export function AppShell() {
             onDelete={deleteChat}
             footer={footer}
           />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+        <SheetContent side="left" title="Search chats" className="w-[min(100%,24rem)]">
+          <div className="p-4">
+            <div className="mb-4 flex items-center gap-2 rounded-md bg-elevated px-3 py-2">
+              <Search className="size-4 text-muted" />
+              <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search conversations…" className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-subtle" />
+            </div>
+            <div className="space-y-1 overflow-y-auto">
+              {conversations.filter((c) => (c.title || t.untitled).toLowerCase().includes(searchQuery.trim().toLowerCase())).map((c) => (
+                <button key={c.id} type="button" onClick={() => { selectChat(c.id); setSearchOpen(false); }} className="w-full rounded-md px-3 py-2.5 text-left text-sm text-muted hover:bg-elevated hover:text-fg">
+                  {c.title || t.untitled}
+                </button>
+              ))}
+              {conversations.filter((c) => (c.title || t.untitled).toLowerCase().includes(searchQuery.trim().toLowerCase())).length === 0 ? (
+                <p className="px-3 py-8 text-center text-sm text-muted">No conversations found</p>
+              ) : null}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent side="right" title="Settings" className="w-[min(100%,24rem)]">
+          <div className="space-y-5 p-4">
+            <div>
+              <p className="text-sm font-medium text-fg">Language</p>
+              <div className="mt-2 flex rounded-md bg-elevated p-1">
+                <button type="button" onClick={() => setLocale("th")} className={`flex-1 rounded-sm px-3 py-2 text-xs ${locale === "th" ? "bg-surface text-fg" : "text-muted"}`}>ไทย</button>
+                <button type="button" onClick={() => setLocale("en")} className={`flex-1 rounded-sm px-3 py-2 text-xs ${locale === "en" ? "bg-surface text-fg" : "text-muted"}`}>English</button>
+              </div>
+            </div>
+            <div className="rounded-lg bg-elevated p-4">
+              <p className="text-sm font-medium text-fg">Agent Mode</p>
+              <p className="mt-1 text-xs leading-normal text-muted">BOSSNU keeps your Puter session, selected model, conversations, and workspace together.</p>
+            </div>
+            <Button variant="secondary" className="w-full" onClick={() => { setSettingsOpen(false); setWorkspaceOpen(true); }}>Open Workspace</Button>
+          </div>
         </SheetContent>
       </Sheet>
 
