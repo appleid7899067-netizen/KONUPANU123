@@ -117,7 +117,7 @@ export function AppShell() {
             await streamChat({
               puter,
               messages: [
-                { role: "system", content: "You are BOSSNU Agent planner. Return only the JSON plan requested by the user. Do not pretend to execute tools." },
+                { role: "system", content: "You are Bossnu Agent planner. Return only the JSON plan requested by the user. Do not pretend to execute tools." },
                 { role: "user", content: buildAgentPlannerPrompt(text, workspaceFiles.map((file) => ({ path: file.path, content: file.content }))) },
               ],
               model: opts.model,
@@ -141,7 +141,7 @@ export function AppShell() {
               const evidence = [...applied.evidence, ...webEvidence, ...sandboxEvidence, ...githubEvidence];
               const verification = plan.verify.length ? `Requested verification:\n- ${plan.verify.join("\n- ")}` : "";
               const finalPrompt = [
-                "You are BOSSNU completing an Agent Mode task.",
+                "You are Bossnu completing an Agent Mode task.",
                 "Use the evidence below. Do not claim actions that are not evidenced.",
                 "If a requested capability was not available, say so plainly.",
                 `User goal: ${text}`,
@@ -156,7 +156,7 @@ export function AppShell() {
               let assembled = "";
               await streamChat({
                 puter,
-                messages: [{ role: "system", content: "You are BOSSNU. Report verified work only." }, { role: "user", content: finalPrompt }],
+                messages: [{ role: "system", content: "You are Bossnu. Report verified work only." }, { role: "user", content: finalPrompt }],
                 model: opts.model,
                 provider: opts.provider,
                 isCancelled: () => cancelRef.current,
@@ -339,7 +339,7 @@ export function AppShell() {
           <div className="relative">
             <button type="button" onClick={() => setModeOpen((v) => !v)} className="flex items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-elevated">
               <Mark className="size-7 rounded-md" />
-              <span className="text-sm font-medium">BOSSNU</span>
+              <span className="text-sm font-medium">Bossnu</span>
               <span className="text-xs text-muted">{directMode ? "Direct chat" : "Agent Mode"}</span>
               <ChevronDown className="size-3.5 text-muted" />
             </button>
@@ -373,7 +373,7 @@ export function AppShell() {
         ) : null}
         {settingsOpen ? (
           <div className="absolute right-3 top-14 z-50 w-[min(92vw,360px)] rounded-2xl border border-border bg-surface p-4 shadow-2xl">
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium">BOSSNU settings</p><p className="mt-1 text-xs text-muted">Agent Mode workspace</p></div><button type="button" onClick={() => setSettingsOpen(false)}><X className="size-4 text-muted" /></button></div>
+            <div className="flex items-center justify-between"><div><p className="text-sm font-medium">Bossnu settings</p><p className="mt-1 text-xs text-muted">Agent Mode workspace</p></div><button type="button" onClick={() => setSettingsOpen(false)}><X className="size-4 text-muted" /></button></div>
             <div className="mt-4 space-y-2">
               <div className="rounded-xl bg-elevated p-3"><p className="text-xs font-medium">Puter</p><p className="mt-1 text-[11px] text-muted">{signedIn ? "Connected" : "Not connected"}</p></div>
               <button type="button" onClick={() => { setSettingsOpen(false); setWorkspaceOpen(true); }} className="w-full rounded-xl bg-elevated p-3 text-left"><p className="text-xs font-medium">Workspace</p><p className="mt-1 text-[11px] text-muted">Open files, Diff, Checks and Preview</p></button>
@@ -420,7 +420,7 @@ export function AppShell() {
               <div className="space-y-4">
                 <div className="rounded-xl border border-border bg-surface p-4">
                   <div className="flex items-center gap-2"><GitBranch className="size-4" /><span className="text-sm font-medium">GitHub</span></div>
-                  <p className="mt-1.5 text-xs leading-5 text-muted">Connect a repository and BOSSNU can work on an isolated copy, then prepare changes for review.</p>
+                  <p className="mt-1.5 text-xs leading-5 text-muted">Connect a repository and Bossnu can work on an isolated copy, then prepare changes for review.</p>
                   <div className="mt-3 space-y-2">
                     <Button className="w-full justify-center" onClick={installGitHubApp} disabled={!githubAppSlug}>
                       <Github className="size-4" /> {githubAppSlug ? "GitHub OAuth • เลือกรีโพ" : "GitHub App ยังไม่ได้ตั้งค่า"}
@@ -469,7 +469,7 @@ export function AppShell() {
       ) : null}
 
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
-        <SheetContent side="left" title="BOSSNU" className="w-[280px] p-0">
+        <SheetContent side="left" title="Bossnu" className="w-[280px] p-0">
           <Sidebar t={t} conversations={conversations} activeId={activeId} onNew={() => { newChat(); setNavOpen(false); }} onSelect={(id) => { selectChat(id); setNavOpen(false); }} onDelete={deleteChat} footer={footer} />
         </SheetContent>
       </Sheet>
