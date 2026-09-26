@@ -251,7 +251,7 @@ export function AppShell() {
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">{workspaceNotice ? <div className="mb-3 rounded-lg bg-elevated px-3 py-2 text-[11px]">{workspaceNotice}</div> : null}
-            {workspaceTab === "workspace" ? (
+            {workspaceTab === "workspace" && (
               <div className="space-y-4">
                 <div className="rounded-xl border border-border bg-surface p-4">
                   <div className="flex items-center gap-2"><GitBranch className="size-4" /><span className="text-sm font-medium">GitHub</span></div>
@@ -264,7 +264,8 @@ export function AppShell() {
                   <div className="overflow-hidden rounded-xl border border-border bg-surface"><div className="max-h-48 divide-y divide-border overflow-y-auto">{workspaceFiles.map((file) => <button key={file.path} type="button" onClick={() => selectWorkspaceFile(file.path)} className={cn("flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-elevated", selectedWorkspaceFile === file.path && "bg-elevated")}><span className="size-2 rounded-sm bg-muted" /><span className="min-w-0 flex-1 truncate">{file.path}</span><span className="text-[10px] text-muted">{Math.ceil(file.size / 1024)} KB</span></button>)}</div>{workspaceFiles.length === 0 ? <div className="px-4 py-10 text-center"><p className="text-sm text-fg">No files yet</p><p className="mt-1 text-xs leading-5 text-muted">Upload files or ask the agent to create one.</p></div> : null}{selectedWorkspaceFile ? <div className="border-t border-border"><div className="px-3 py-2 text-[11px] font-medium">{selectedWorkspaceFile}</div><pre className="max-h-64 overflow-auto border-t border-border bg-bg p-3 text-[10px] leading-5 text-muted">{workspaceFiles.find((file) => file.path === selectedWorkspaceFile)?.content}</pre></div> : null}</div>
                 </div>
               </div>
-            ) : workspaceTab === "diff" ? (
+            )}
+            {workspaceTab === "diff" && (
               <div className="space-y-3">
                 <div className="flex rounded-lg bg-elevated p-1">
                   <button type="button" onClick={() => setDiffScope("turn")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "turn" && "bg-surface")}>Last turn</button>
@@ -272,60 +273,17 @@ export function AppShell() {
                 </div>
                 <div className="rounded-xl border border-border bg-surface"><div className="border-b border-border px-3 py-2 text-[11px] text-muted">{workspaceFiles.length} workspace file{workspaceFiles.length === 1 ? "" : "s"}</div>{workspaceFiles.length ? workspaceFiles.map((file) => <div key={file.path} className="border-b border-border last:border-0"><div className="flex items-center gap-2 px-3 py-2"><span className="font-mono text-[10px]">M</span><span className="min-w-0 flex-1 truncate text-xs">{file.path}</span><span className="text-[10px] text-muted">{file.source}</span></div><pre className="max-h-28 overflow-auto bg-bg px-3 py-2 text-[9px] leading-4 text-muted">{file.content.slice(0, 2400)}</pre></div>) : <div className="px-4 py-8 text-center"><p className="text-sm">{diffScope === "turn" ? "No changes in this turn yet" : "No branch changes yet"}</p><p className="mt-1 text-xs text-muted">Upload or modify files to populate the workspace diff.</p></div>}</div>
               </div>
-            ) : workspaceTab === "checks" ? (
+            )}
+            {workspaceTab === "checks" && (
               <div className="space-y-3">
-                <div className="rounded-xl border border-border bg-surface p-4">
-                  <p className="text-sm font-medium">Checks</p>
-                  <p className="mt-1 text-xs leading-5 text-muted">Live status for the current local workspace.</p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">Workspace files</span>
-                    <span className="text-[11px] text-muted">{workspaceFiles.length ? "Ready" : "Waiting"}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] text-muted">{workspaceFiles.length ? workspaceFiles.length + " file" + (workspaceFiles.length === 1 ? "" : "s") + " available for review." : "Upload a file to start a workspace check."}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">GitHub CI</span>
-                    <span className="text-[11px] text-muted">Not connected</span>
-                  </div>
-                  <p className="mt-1 text-[11px] text-muted">No repository CI endpoint is configured, so BOSSNU will not invent a pass/fail result.</p>
-                </div>
+                <div className="rounded-xl border border-border bg-surface p-4"><p className="text-sm font-medium">Checks</p><p className="mt-1 text-xs leading-5 text-muted">Live status for the current local workspace.</p></div>
+                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><span className="text-xs">Workspace files</span><span className="text-[11px] text-muted">{workspaceFiles.length ? "Ready" : "Waiting"}</span></div><p className="mt-1 text-[11px] text-muted">{workspaceFiles.length ? workspaceFiles.length + " file" + (workspaceFiles.length === 1 ? "" : "s") + " available for review." : "Upload a file to start a workspace check."}</p></div>
+                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><span className="text-xs">GitHub CI</span><span className="text-[11px] text-muted">Not connected</span></div><p className="mt-1 text-[11px] text-muted">No repository CI endpoint is configured, so BOSSNU will not invent a pass/fail result.</p></div>
               </div>
-            ) : workspaceTab === "preview" ? (
+            )}
+            {workspaceTab === "preview" && (
               <div className="space-y-3">
-                {selectedWorkspaceFile && selectedWorkspaceFile.toLowerCase().endsWith(".html") ? (
-                  <div className="overflow-hidden rounded-xl border border-border bg-white">
-                    <iframe
-                      title="BOSSNU workspace preview"
-                      sandbox=""
-                      srcDoc={workspaceFiles.find((file) => file.path === selectedWorkspaceFile)?.content ?? ""}
-                      className="h-[520px] w-full border-0"
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                    <p className="text-sm">Preview</p>
-                    <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p>
-                  </div>
-                )}
+                {selectedWorkspaceFile && selectedWorkspaceFile.toLowerCase().endsWith(".html") ? <div className="overflow-hidden rounded-xl border border-border bg-white"><iframe title="BOSSNU workspace preview" sandbox="" srcDoc={workspaceFiles.find((file) => file.path === selectedWorkspaceFile)?.content ?? ""} className="h-[520px] w-full border-0" /></div> : <div className="rounded-xl border border-border bg-surface p-8 text-center"><p className="text-sm">Preview</p><p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p></div>}
               </div>
-            ) : null}
-        </aside>
-      ) : null}
-
-      <Sheet open={navOpen} onOpenChange={setNavOpen}>
-        <SheetContent side="left" title="BOSSNU" className="w-[280px] p-0">
-          <Sidebar t={t} conversations={conversations} activeId={activeId} onNew={() => { newChat(); setNavOpen(false); }} onSelect={(id) => { selectChat(id); setNavOpen(false); }} onDelete={deleteChat} footer={footer} />
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={modelsOpen} onOpenChange={setModelsOpen}>
-        <SheetContent side="right" title="Models" className="w-[min(100%,30rem)] p-0">
-          <ModelPicker models={models} selectedId={model?.id ?? modelId} featured={featured} t={t} onSelect={(id) => { setModelId(id); setModelsOpen(false); }} />
-        </SheetContent>
-      </Sheet>
-    </div>
-  );
-}
+            )}
+          </div>
