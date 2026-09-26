@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Copy, Globe2, ImagePlus, Paperclip, Plus, Square, TerminalSquare, Wrench, X } from "lucide-react";
+import { ArrowUp, Check, ChevronRight, Copy, Globe2, ImagePlus, Paperclip, Plus, Square, TerminalSquare, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
@@ -61,7 +61,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
         ) : (
           <div className="mx-auto w-full max-w-[760px] px-5 pb-40 pt-10">
             {messages.map((message) => <Message key={message.id} message={message} model={model} t={t} streaming={streaming} />)}
-            {workStatus ? <div className="mt-3 text-xs text-muted">{workStatus}</div> : null}
+            {workStatus ? <AgentActivity status={workStatus} streaming={streaming} /> : null}
             <div ref={bottomRef} />
           </div>
         )}
@@ -89,6 +89,24 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function AgentActivity({ status, streaming }: { status: string; streaming: boolean }) {
+  const done = /✓|Done|ตรวจแล้ว|เรียบร้อย/.test(status);
+  const failed = /✕|Failed|ข้อผิดพลาด/.test(status);
+  const label = status.replace(/\s*[✓✕]\s*$/, "").trim();
+  return (
+    <div className="mt-2 flex items-center gap-2 px-1 py-1.5 text-[12px] leading-5 text-muted" aria-live="polite">
+      <span className={cn(
+        "inline-flex size-5 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-[10px] font-medium text-fg",
+        failed && "text-danger",
+      )}>
+        {done ? <Check className="size-3" /> : failed ? "!" : <ChevronRight className="size-3" />}
+      </span>
+      <span className={cn("truncate", (done || failed) && "text-fg")}>{label}</span>
+      {streaming && !done && !failed ? <span className="ml-auto text-[10px] text-muted">Agent</span> : null}
     </div>
   );
 }
