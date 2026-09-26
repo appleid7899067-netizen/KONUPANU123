@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Files, GitBranch, LogOut, Menu, PanelRight, Play, Search, Settings2, Upload, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ChevronDown, Download, GitBranch, Menu, PanelRight, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ChatPanel } from "@/components/app/chat-panel";
@@ -7,7 +7,7 @@ import { Mark, Sidebar } from "@/components/app/sidebar";
 import { ModelPicker } from "@/components/app/model-picker";
 import { usePuter } from "@/components/puter-provider";
 import { copy } from "@/lib/i18n";
-import { chatModelOptions, pickFeatured, providerLabel } from "@/lib/models";
+import { chatModelOptions, pickFeatured, type CatalogModel } from "@/lib/models";
 import { streamChat, type PuterChatMessage } from "@/lib/puter";
 import { useChat } from "@/store/chat";
 
@@ -34,22 +34,13 @@ export function AppShell() {
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
-  const [diffScope, setDiffScope] = useState<"last" | "branch">("last");
+  const [modeOpen, setModeOpen] = useState(false);
   const cancelRef = useRef(false);
-
-  useEffect(() => {
-    const v = window.localStorage.getItem("prism.locale");
-    if (v === "en" || v === "th") setLocale(v);
-  }, [setLocale]);
 
   const featured = useMemo(() => pickFeatured(models), [models]);
   const model = models.find((m) => m.id === modelId) ?? featured[0];
   const conversation = conversations.find((c) => c.id === activeId) ?? null;
-  const providerCount = useMemo(() => new Set(models.map((m) => m.provider)).size, [models]);
 
   const stop = () => {
     cancelRef.current = true;
@@ -62,39 +53,38 @@ export function AppShell() {
       return;
     }
     if (!puter || streaming) return;
+
     const { conversation: convo, assistant } = appendUser(text);
     const selected = models.find((m) => m.id === (convo.modelId || modelId)) ?? model;
-    const opts = selected ? chatModelOptions(selected) : { model: modelId };
     cancelRef.current = false;
     setStreaming(true);
+
     const history: PuterChatMessage[] = convo.messages
       .filter((m) => m.id !== assistant.id && m.content)
       .map((m) => ({ role: m.role, content: m.content }));
-    try {
-      const fallbackPool = [
-        selected,
-        ...featured,
-        ...models.filter((m) => m.id !== selected?.id && m.provider !== "openrouter"),
-      ].filter(Boolean);
-      let lastError: unknown = null;
-      let succeeded = false;
 
-      for (let attempt = 0; attempt < Math.min(4, fallbackPool.length); attempt++) {
+    try {
+      const pool = [selected, ...featured, ...models.filter((m) => m.id !== selected?.id)].filter(Boolean) as CatalogModel[];
+      let lastError: unknown = null;
+      let done = false;
+
+      for (let attempt = 0; attempt < Math.min(4, pool.length); attempt++) {
         if (cancelRef.current) break;
-        const candidate = fallbackPool[attempt]!;
-        const candidateOpts = chatModelOptions(candidate);
+        const candidate = pool[attempt]!;
         setWorkStatus(
           attempt === 0
-            ? (locale === "th" ? "กำลังเชื่อมต่อโมเดล…" : "Connecting to model…")
-            : (locale === "th" ? `โมเดลไม่พร้อม กำลังลองสำรอง ${attempt}/3…` : `Model unavailable, trying fallback ${attempt}/3…`),
+            ? locale === "th" ? "กำลังทำงาน…" : "Working…"
+            : locale === "th" ? `กำลังลองโมเดลสำรอง ${attempt}/3…` : `Trying fallback ${attempt}/3…`,
         );
+
         try {
           let assembled = "";
+          const opts = chatModelOptions(candidate);
           await streamChat({
             puter,
             messages: history,
-            model: candidateOpts.model,
-            provider: candidateOpts.provider,
+            model: opts.model,
+            provider: opts.provider,
             isCancelled: () => cancelRef.current,
             onDelta: (chunk) => {
               assembled += chunk;
@@ -102,191 +92,76 @@ export function AppShell() {
             },
           });
           if (assembled.trim()) {
-            succeeded = true;
-            setWorkStatus(locale === "th" ? "เรียบร้อย ✓" : "Complete ✓");
+            done = true;
+            setWorkStatus(locale === "th" ? "เรียบร้อย ✓" : "Done ✓");
             break;
           }
           lastError = new Error("empty response");
-        } catch (err) {
-          lastError = err;
+        } catch (error) {
+          lastError = error;
         }
       }
 
-      if (!succeeded && !cancelRef.current) {
+      if (!done && !cancelRef.current) {
         const message = lastError instanceof Error ? lastError.message : t.error;
         patchAssistant(convo.id, assistant.id, {
-          content: locale === "th" ? `โมเดลที่เลือกใช้งานไม่ได้ และโมเดลสำรองก็ไม่ตอบกลับ: ${message}` : `The selected model and fallbacks failed: ${message}`,
+          content: locale === "th" ? `งานยังไม่สำเร็จ: ${message}` : `The task did not complete: ${message}`,
           error: true,
         });
-        setWorkStatus(locale === "th" ? "เกิดข้อผิดพลาด ✕" : "Request failed ✕");
+        setWorkStatus(locale === "th" ? "เกิดข้อผิดพลาด ✕" : "Failed ✕");
       }
     } finally {
       setStreaming(false);
-      window.setTimeout(() => setWorkStatus(""), 900);
+      window.setTimeout(() => setWorkStatus(""), 1000);
     }
   };
 
   const footer = (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm text-fg">{signedIn ? user?.username ?? t.signedInAs : t.guest}</p>
-          <p className="text-[11px] text-muted">{t.userPays}</p>
+      <div className="flex items-center gap-2">
+        <Mark className="size-8" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-fg">{signedIn ? user?.username ?? "Puter" : "Guest"}</p>
+          <p className="truncate text-[10px] text-muted">{signedIn ? "Connected" : "Sign in to start"}</p>
         </div>
-        {signedIn ? (
-          <Button variant="ghost" size="icon-sm" onClick={() => void signOut()} aria-label={t.signOut}>
-            <LogOut className="size-4" />
-          </Button>
-        ) : null}
+        {signedIn ? <Button variant="ghost" size="icon-sm" onClick={() => void signOut()} aria-label="Sign out"><X className="size-4" /></Button> : null}
       </div>
-      {!signedIn ? (
-        <Button className="w-full" onClick={() => void signIn()} disabled={!ready && !failed}>
-          {t.signIn}
-        </Button>
-      ) : null}
-      <div className="flex rounded-sm bg-elevated p-0.5">
-        <button
-          type="button"
-          onClick={() => setLocale("th")}
-          className={`h-8 flex-1 rounded-xs text-xs ${locale === "th" ? "bg-surface text-fg" : "text-muted"}`}
-        >
-          TH
-        </button>
-        <button
-          type="button"
-          onClick={() => setLocale("en")}
-          className={`h-8 flex-1 rounded-xs text-xs ${locale === "en" ? "bg-surface text-fg" : "text-muted"}`}
-        >
-          EN
-        </button>
-      </div>
-    </div>
-  );
-
-  const hero = (
-    <div className="mx-auto flex w-full max-w-2xl flex-col px-4 pt-6 pb-6 sm:pt-16 sm:pb-8">
-      <div className="animate-[rise_500ms_var(--ease-out-smooth)_both]">
-        <div className="mb-5 flex items-center gap-3">
-          <Mark className="size-11 rounded-md" />
-          <h1 className="font-display text-3xl tracking-[-0.03em] text-fg">{t.app}</h1>
-        </div>
-        <p className="max-w-md text-lg leading-snug text-fg">{t.tagline}</p>
-        <p className="mt-2 max-w-md text-sm leading-normal text-muted">{t.sub}</p>
-        <div className="mt-5 flex flex-wrap gap-2 text-[11px] text-muted">
-          <span className="rounded-full bg-elevated px-2.5 py-1 tabular-nums">
-            {models.length.toLocaleString()} {t.catalogCount}
-          </span>
-          <span className="rounded-full bg-elevated px-2.5 py-1 tabular-nums">
-            {providerCount} {t.providers}
-          </span>
-          <span className="rounded-full bg-elevated px-2.5 py-1">{t.userPays}</span>
-        </div>
-        {!signedIn ? (
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Button size="lg" onClick={() => void signIn()} disabled={failed}>
-              {ready ? t.signIn : t.signingIn}
-            </Button>
-            <Button size="lg" variant="secondary" onClick={() => setModelsOpen(true)}>
-              {t.browse}
-            </Button>
-          </div>
-        ) : (
-          <p className="mt-6 text-sm text-muted">{t.startWith}</p>
-        )}
-      </div>
-
-      <div className="mt-8">
-        <p className="mb-3 text-[11px] font-medium tracking-wide text-muted uppercase">{t.featured}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {featured.map((m, i) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => {
-                setModelId(m.id);
-                setModelsOpen(false);
-              }}
-              className="rounded-lg bg-surface p-4 text-left shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-fg)_10%,transparent)] transition-[box-shadow] duration-150 hover:shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-fg)_22%,transparent)] animate-[rise_500ms_var(--ease-out-smooth)_both]"
-              style={{ animationDelay: `${80 + i * 40}ms` }}
-            >
-              <p className="text-[11px] text-muted">{providerLabel(m.provider)}</p>
-              <p className="mt-1 text-sm font-medium text-fg">{m.name}</p>
-              <p className="mt-1 truncate font-mono text-[11px] text-subtle">{m.id}</p>
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setModelsOpen(true)}
-          className="mt-3 text-sm text-muted hover:text-fg"
-        >
-          {t.orPick} →
-        </button>
-        <div className="mt-8">
-          <p className="mb-3 text-[11px] font-medium tracking-wide text-muted uppercase">Agent starters</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {[
-              ["Create a landing page", "Build a polished responsive landing page"],
-              ["Build a dashboard", "Create a dashboard with useful cards and charts"],
-              ["Make a game", "Prototype a small playable browser game"],
-              ["Design to code", "Turn a design idea into working UI code"],
-              ["Build a fullstack app", "Create the UI and connect the application flow"],
-              ["Launch a storefront", "Build a product storefront with a clean checkout flow"],
-            ].map(([title, prompt]) => (
-              <button key={title} type="button" onClick={() => void send(prompt)} className="rounded-lg bg-surface p-3 text-left shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-fg)_10%,transparent)] transition-[box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-fg)_22%,transparent)]">
-                <span className="block text-sm font-medium text-fg">{title}</span>
-                <span className="mt-1 block text-xs leading-normal text-muted">{prompt}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {!signedIn ? <Button className="w-full" onClick={() => void signIn()} disabled={!ready && !failed}>{failed ? "Puter unavailable" : "Sign in"}</Button> : null}
     </div>
   );
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-bg text-fg">
-      <aside className="hidden w-[250px] shrink-0 border-r border-border bg-surface lg:block">
-        <Sidebar
-          t={t}
-          conversations={conversations}
-          activeId={activeId}
-          onNew={() => newChat()}
-          onSelect={selectChat}
-          onDelete={deleteChat}
-          footer={footer}
-        />
+      <aside className="hidden w-[232px] shrink-0 border-r border-border bg-bg lg:block">
+        <Sidebar t={t} conversations={conversations} activeId={activeId} onNew={newChat} onSelect={selectChat} onDelete={deleteChat} footer={footer} />
       </aside>
 
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-2 sm:px-3">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="lg:hidden"
-            aria-label="Menu"
-            onClick={() => setNavOpen(true)}
-          >
-            <Menu className="size-4" />
-          </Button>
-          <Mark className="lg:hidden" />
-          <button
-            type="button"
-            onClick={() => setModelsOpen(true)}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-elevated sm:flex-none"
-          >
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-fg">Agent Mode</span>
-              <span className="hidden truncate text-[11px] text-muted sm:block">{model?.name ?? t.selectModel}</span>
-              <span className="hidden truncate text-[11px] text-muted sm:block">
-                {model ? providerLabel(model.provider) : t.models}
-              </span>
-            </span>
-            <ChevronDown className="size-3.5 shrink-0 text-subtle" />
-          </button>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="relative flex h-14 shrink-0 items-center px-3">
+          <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setNavOpen(true)} aria-label="Menu"><Menu className="size-4" /></Button>
+          <div className="relative">
+            <button type="button" onClick={() => setModeOpen((v) => !v)} className="flex items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-elevated">
+              <Mark className="size-7 rounded-md" />
+              <span className="text-sm font-medium">BOSSNU</span>
+              <span className="text-xs text-muted">Agent Mode</span>
+              <ChevronDown className="size-3.5 text-muted" />
+            </button>
+            {modeOpen ? (
+              <div className="absolute left-0 top-11 z-40 w-64 rounded-xl border border-border bg-surface p-1.5 shadow-2xl">
+                <button type="button" className="w-full rounded-lg bg-elevated px-3 py-2.5 text-left">
+                  <span className="block text-sm font-medium">Agent Mode</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">Plan, use tools, write files and iterate</span>
+                </button>
+                <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-muted hover:bg-elevated hover:text-fg" onClick={() => setModeOpen(false)}>
+                  <span className="block text-sm">Direct chat</span>
+                  <span className="mt-0.5 block text-[11px]">Simple one-shot conversation</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="Search" onClick={() => setSearchOpen(true)}><Search className="size-4" /></Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Settings" onClick={() => setSettingsOpen(true)}><Settings2 className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Search"><Search className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Settings"><Settings2 className="size-4" /></Button>
             <Button variant={workspaceOpen ? "secondary" : "ghost"} size="icon-sm" aria-label="Workspace" onClick={() => setWorkspaceOpen((v) => !v)}><PanelRight className="size-4" /></Button>
           </div>
         </header>
@@ -298,127 +173,84 @@ export function AppShell() {
           streaming={streaming}
           signedIn={signedIn}
           failed={failed}
-          onSend={(text) => void send(text)}
+          onSend={(value) => void send(value)}
           onStop={stop}
           onSignIn={() => void signIn()}
           onOpenModels={() => setModelsOpen(true)}
-          hero={hero}
           workStatus={workStatus}
         />
       </div>
+
       {workspaceOpen ? (
-        <aside className="hidden w-[330px] shrink-0 border-l border-border bg-surface xl:flex xl:flex-col">
-          <div className="flex h-14 items-center justify-between border-b border-border px-4">
-            <div><p className="text-sm font-medium text-fg">Workspace</p><p className="text-[11px] text-muted">BOSSNU Agent</p></div>
-            <div className="flex items-center gap-1"><Button variant="ghost" size="icon-sm" aria-label="Download workspace" title="Download workspace"><Upload className="size-4 rotate-180" /></Button><Button variant="ghost" size="icon-sm" aria-label="Workspace settings"><Settings2 className="size-4" /></Button><Button variant="ghost" size="icon-sm" aria-label="Close workspace" onClick={() => setWorkspaceOpen(false)}><X className="size-4" /></Button></div>
+        <aside className="hidden w-[360px] shrink-0 border-l border-border bg-bg xl:flex xl:flex-col">
+          <div className="flex h-14 items-center gap-2 border-b border-border px-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Workspace</p>
+              <p className="text-[11px] text-muted">Session files and development tools</p>
+            </div>
+            <Button variant="ghost" size="icon-sm" title="Download workspace" aria-label="Download workspace"><Download className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" title="Workspace settings" aria-label="Workspace settings"><Settings2 className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" onClick={() => setWorkspaceOpen(false)} aria-label="Close workspace"><X className="size-4" /></Button>
           </div>
           <div className="grid grid-cols-4 border-b border-border">
-            {(["workspace","diff","checks","preview"] as const).map((id) => (
-              <button key={id} type="button" onClick={() => setWorkspaceTab(id)} className={workspaceTab === id ? "border-b-2 border-fg px-2 py-3 text-[11px] text-fg" : "px-2 py-3 text-[11px] text-muted hover:text-fg"}>{id === "workspace" ? "Workspace" : id === "diff" ? "Diff" : id === "checks" ? "Checks" : "Preview"}</button>
+            {(["workspace","diff","checks","preview"] as const).map((tab) => (
+              <button key={tab} type="button" onClick={() => setWorkspaceTab(tab)} className={workspaceTab === tab ? "border-b-2 border-fg py-3 text-[11px] font-medium" : "py-3 text-[11px] text-muted hover:text-fg"}>
+                {tab === "workspace" ? "Workspace" : tab === "diff" ? "Diff" : tab === "checks" ? "Checks" : "Preview"}
+              </button>
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {workspaceTab === "diff" ? (
-              <div>
-                <div className="mb-3 flex rounded-md bg-elevated p-0.5">
-                  <button type="button" onClick={() => setDiffScope("last")} className={diffScope === "last" ? "flex-1 rounded-sm bg-surface px-2 py-1.5 text-[11px] text-fg" : "flex-1 rounded-sm px-2 py-1.5 text-[11px] text-muted"}>Last turn</button>
-                  <button type="button" onClick={() => setDiffScope("branch")} className={diffScope === "branch" ? "flex-1 rounded-sm bg-surface px-2 py-1.5 text-[11px] text-fg" : "flex-1 rounded-sm px-2 py-1.5 text-[11px] text-muted"}>Full branch</button>
-                </div>
-                <div className="rounded-lg bg-elevated/50 p-6 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-3 text-sm text-fg">No changes yet</p><p className="mt-1 text-xs text-muted">The {diffScope === "last" ? "latest turn" : "working branch"} diff will appear here.</p></div>
-              </div>
-            ) : workspaceTab === "workspace" ? (
+            {workspaceTab === "workspace" ? (
               <div className="space-y-4">
-                <div className="rounded-lg bg-elevated p-4">
-                  <div className="flex items-center gap-2 text-sm font-medium"><GitBranch className="size-4" /> Repository</div>
-                  <p className="mt-2 text-xs text-muted">Connect a GitHub repository to work with project files.</p>
-                  <Button size="sm" variant="secondary" className="mt-3 w-full"><GitBranch className="size-3.5" /> Connect GitHub</Button>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <div className="flex items-center gap-2"><GitBranch className="size-4" /><span className="text-sm font-medium">GitHub</span></div>
+                  <p className="mt-1.5 text-xs leading-5 text-muted">Connect a repository and BOSSNU can work on an isolated copy, then prepare changes for review.</p>
+                  <Button variant="secondary" className="mt-3 w-full"><GitBranch className="size-3.5" /> Connect repository</Button>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-muted"><span>Branch</span><span>working</span></div>
                 </div>
                 <div>
-                  <div className="mb-2 flex items-center justify-between"><span className="text-[11px] font-medium uppercase tracking-wide text-muted">Files</span><Upload className="size-3.5 text-muted" /></div>
-                  <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-2 text-xs text-muted">Session files will appear here.</p></div>
+                  <div className="mb-2 flex items-center justify-between"><span className="text-[11px] font-medium uppercase tracking-wide text-muted">Files</span><span className="text-[10px] text-subtle">Session</span></div>
+                  <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                    <p className="text-sm text-fg">No files yet</p>
+                    <p className="mt-1 text-xs text-muted">Upload files or ask the agent to create one.</p>
+                  </div>
+                </div>
+              </div>
+            ) : workspaceTab === "diff" ? (
+              <div className="space-y-3">
+                <div className="flex rounded-lg bg-elevated p-1">
+                  <span className="flex-1 rounded-md bg-surface px-3 py-2 text-center text-[11px]">Last turn</span>
+                  <span className="flex-1 px-3 py-2 text-center text-[11px] text-muted">Full branch</span>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-8 text-center">
+                  <p className="text-sm">No changes yet</p>
+                  <p className="mt-1 text-xs leading-5 text-muted">Code changes will appear here as the agent works.</p>
                 </div>
               </div>
             ) : workspaceTab === "checks" ? (
-              <div className="rounded-lg bg-elevated/50 p-6 text-center"><p className="mx-auto flex size-5 items-center justify-center rounded-full border border-border text-[10px]">✓</p><p className="mt-3 text-sm text-fg">Checks</p><p className="mt-1 text-xs text-muted">Commit and deployment checks will appear here.</p></div>
+              <div className="rounded-xl border border-border bg-surface p-8 text-center">
+                <p className="text-sm">Checks</p>
+                <p className="mt-1 text-xs leading-5 text-muted">Commit and pull request checks will appear here.</p>
+              </div>
             ) : (
-              <div className="rounded-lg bg-elevated/50 p-6 text-center"><Play className="mx-auto size-5 text-muted" /><p className="mt-3 text-sm text-fg">Preview</p><p className="mt-1 text-xs text-muted">A live preview can appear here when the app is built.</p></div>
+              <div className="rounded-xl border border-border bg-surface p-8 text-center">
+                <p className="text-sm">Preview</p>
+                <p className="mt-1 text-xs leading-5 text-muted">A running app preview will appear here when available.</p>
+              </div>
             )}
           </div>
         </aside>
       ) : null}
 
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
-        <SheetContent side="left" title={t.app} className="p-0">
-          <Sidebar
-            t={t}
-            conversations={conversations}
-            activeId={activeId}
-            onNew={() => {
-              newChat();
-              setNavOpen(false);
-            }}
-            onSelect={(id) => {
-              selectChat(id);
-              setNavOpen(false);
-            }}
-            onDelete={deleteChat}
-            footer={footer}
-          />
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
-        <SheetContent side="left" title="Search chats" className="w-[min(100%,24rem)]">
-          <div className="p-4">
-            <div className="mb-4 flex items-center gap-2 rounded-md bg-elevated px-3 py-2">
-              <Search className="size-4 text-muted" />
-              <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search conversations…" className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-subtle" />
-            </div>
-            <div className="space-y-1 overflow-y-auto">
-              {conversations.filter((c) => (c.title || t.untitled).toLowerCase().includes(searchQuery.trim().toLowerCase())).map((c) => (
-                <button key={c.id} type="button" onClick={() => { selectChat(c.id); setSearchOpen(false); }} className="w-full rounded-md px-3 py-2.5 text-left text-sm text-muted hover:bg-elevated hover:text-fg">
-                  {c.title || t.untitled}
-                </button>
-              ))}
-              {conversations.filter((c) => (c.title || t.untitled).toLowerCase().includes(searchQuery.trim().toLowerCase())).length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-muted">No conversations found</p>
-              ) : null}
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent side="right" title="Settings" className="w-[min(100%,24rem)]">
-          <div className="space-y-5 p-4">
-            <div>
-              <p className="text-sm font-medium text-fg">Language</p>
-              <div className="mt-2 flex rounded-md bg-elevated p-1">
-                <button type="button" onClick={() => setLocale("th")} className={`flex-1 rounded-sm px-3 py-2 text-xs ${locale === "th" ? "bg-surface text-fg" : "text-muted"}`}>ไทย</button>
-                <button type="button" onClick={() => setLocale("en")} className={`flex-1 rounded-sm px-3 py-2 text-xs ${locale === "en" ? "bg-surface text-fg" : "text-muted"}`}>English</button>
-              </div>
-            </div>
-            <div className="rounded-lg bg-elevated p-4">
-              <p className="text-sm font-medium text-fg">Agent Mode</p>
-              <p className="mt-1 text-xs leading-normal text-muted">BOSSNU keeps your Puter session, selected model, conversations, and workspace together.</p>
-            </div>
-            <Button variant="secondary" className="w-full" onClick={() => { setSettingsOpen(false); setWorkspaceOpen(true); }}>Open Workspace</Button>
-          </div>
+        <SheetContent side="left" title="BOSSNU" className="w-[280px] p-0">
+          <Sidebar t={t} conversations={conversations} activeId={activeId} onNew={() => { newChat(); setNavOpen(false); }} onSelect={(id) => { selectChat(id); setNavOpen(false); }} onDelete={deleteChat} footer={footer} />
         </SheetContent>
       </Sheet>
 
       <Sheet open={modelsOpen} onOpenChange={setModelsOpen}>
-        <SheetContent side="bottom" title={t.selectModel} className="h-[88dvh] sm:inset-y-0 sm:right-0 sm:left-auto sm:h-full sm:w-[min(100%,28rem)] sm:rounded-l-lg sm:rounded-t-none">
-          <ModelPicker
-            models={models}
-            selectedId={model?.id ?? modelId}
-            featured={featured}
-            t={t}
-            onSelect={(id) => {
-              setModelId(id);
-              setModelsOpen(false);
-            }}
-          />
+        <SheetContent side="right" title="Models" className="w-[min(100%,30rem)] p-0">
+          <ModelPicker models={models} selectedId={model?.id ?? modelId} featured={featured} t={t} onSelect={(id) => { setModelId(id); setModelsOpen(false); }} />
         </SheetContent>
       </Sheet>
     </div>
