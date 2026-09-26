@@ -1,0 +1,3 @@
+[submodule "flutterclaw"]
+	path = flutterclaw
+	url = https://github.com/flutterclaw/flutterclaw.git
