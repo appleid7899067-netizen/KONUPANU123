@@ -317,8 +317,6 @@ export function AppShell() {
                   <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-2 text-xs text-muted">Session files will appear here.</p></div>
                 </div>
               </div>
-            ) : workspaceTab === "diff" ? (
-              <div className="rounded-lg bg-elevated/50 p-6 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-3 text-sm text-fg">No changes yet</p><p className="mt-1 text-xs text-muted">File changes will appear here.</p></div>
             ) : workspaceTab === "checks" ? (
               <div className="rounded-lg bg-elevated/50 p-6 text-center"><p className="mx-auto flex size-5 items-center justify-center rounded-full border border-border text-[10px]">✓</p><p className="mt-3 text-sm text-fg">Checks</p><p className="mt-1 text-xs text-muted">Commit and deployment checks will appear here.</p></div>
             ) : (
