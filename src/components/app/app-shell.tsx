@@ -34,6 +34,8 @@ export function AppShell() {
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
   const [diffScope, setDiffScope] = useState<"last" | "branch">("last");
   const cancelRef = useRef(false);
@@ -219,6 +221,24 @@ export function AppShell() {
         >
           {t.orPick} →
         </button>
+        <div className="mt-8">
+          <p className="mb-3 text-[11px] font-medium tracking-wide text-muted uppercase">Agent starters</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {[
+              ["Create a landing page", "Build a polished responsive landing page"],
+              ["Build a dashboard", "Create a dashboard with useful cards and charts"],
+              ["Make a game", "Prototype a small playable browser game"],
+              ["Design to code", "Turn a design idea into working UI code"],
+              ["Build a fullstack app", "Create the UI and connect the application flow"],
+              ["Launch a storefront", "Build a product storefront with a clean checkout flow"],
+            ].map(([title, prompt]) => (
+              <button key={title} type="button" onClick={() => void send(prompt)} className="rounded-lg bg-surface p-3 text-left shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-fg)_10%,transparent)] transition-[box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-fg)_22%,transparent)]">
+                <span className="block text-sm font-medium text-fg">{title}</span>
+                <span className="mt-1 block text-xs leading-normal text-muted">{prompt}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -264,8 +284,8 @@ export function AppShell() {
             <ChevronDown className="size-3.5 shrink-0 text-subtle" />
           </button>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="Search"><Search className="size-4" /></Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Settings"><Settings2 className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Search" onClick={() => setSearchOpen(true)}><Search className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Settings" onClick={() => setSettingsOpen(true)}><Settings2 className="size-4" /></Button>
             <Button variant={workspaceOpen ? "secondary" : "ghost"} size="icon-sm" aria-label="Workspace" onClick={() => setWorkspaceOpen((v) => !v)}><PanelRight className="size-4" /></Button>
           </div>
         </header>
