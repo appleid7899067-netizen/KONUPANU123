@@ -1,4 +1,5 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type ReactNode, useState } from "react";
+import { Play, Square } from "lucide-react";
 
 function inline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
@@ -51,7 +52,7 @@ function inline(text: string): ReactNode[] {
   return nodes;
 }
 
-export function Markdown({ text }: { text: string }) {
+function CodeBlock({ code, language }: { code: string; language: string }) {\n  const [running, setRunning] = useState(false);\n  const [output, setOutput] = useState("");\n  const run = async () => {\n    setRunning(true);\n    setOutput("กำลังรัน…");\n    try {\n      const response = await fetch("https://emkc.org/api/v2/piston/execute", {\n        method: "POST", headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ language: language || "javascript", version: "*", files: [{ content: code }] }),\n      });\n      const data = await response.json();\n      const result = data?.run ?? data;\n      setOutput([result?.stdout, result?.stderr, result?.output].filter(Boolean).join("\\n") || `จบการทำงาน (exit ${result?.code ?? 0})`);\n    } catch (error) {\n      setOutput(`รันไม่สำเร็จ: ${error instanceof Error ? error.message : "unknown error"}`);\n    } finally { setRunning(false); }\n  };\n  return <div className="my-4 overflow-hidden rounded-xl border border-border bg-elevated">\n    <div className="flex items-center justify-between border-b border-border px-3 py-2">\n      <span className="font-mono text-[11px] text-muted">{language || "code"}</span>\n      <button type="button" onClick={run} disabled={running} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-fg disabled:opacity-50">\n        {running ? <Square className="size-3" /> : <Play className="size-3" />} {running ? "Running" : "Run"}\n      </button>\n    </div>\n    <pre className="max-h-[520px] overflow-auto px-4 py-3 font-mono text-[13px] leading-[1.65] text-fg"><code>{code}</code></pre>\n    {output ? <pre className="border-t border-border bg-black/20 px-4 py-3 font-mono text-[12px] leading-5 text-muted whitespace-pre-wrap">{output}</pre> : null}\n  </div>;\n}\n\nexport function Markdown({ text }: { text: string }) {
   const blocks = text.split(/```/);
   const out: ReactNode[] = [];
   for (let i = 0; i < blocks.length; i++) {
