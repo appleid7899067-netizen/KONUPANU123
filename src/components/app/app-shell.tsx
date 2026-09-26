@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, LogOut, Menu } from "lucide-react";
+import { ChevronDown, Files, GitBranch, LogOut, Menu, PanelRight, Play, Search, Settings2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ChatPanel } from "@/components/app/chat-panel";
@@ -33,6 +33,8 @@ export function AppShell() {
 
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
   const cancelRef = useRef(false);
 
   useEffect(() => {
@@ -222,7 +224,7 @@ export function AppShell() {
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-bg text-fg">
-      <aside className="hidden w-72 shrink-0 border-r border-border lg:block">
+      <aside className="hidden w-[250px] shrink-0 border-r border-border bg-surface lg:block">
         <Sidebar
           t={t}
           conversations={conversations}
@@ -235,7 +237,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-2 px-2 sm:px-3">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-2 sm:px-3">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -252,17 +254,18 @@ export function AppShell() {
             className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-elevated sm:flex-none"
           >
             <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-fg">{model?.name ?? t.selectModel}</span>
+              <span className="block truncate text-sm font-medium text-fg">Agent Mode</span>
+              <span className="hidden truncate text-[11px] text-muted sm:block">{model?.name ?? t.selectModel}</span>
               <span className="hidden truncate text-[11px] text-muted sm:block">
                 {model ? providerLabel(model.provider) : t.models}
               </span>
             </span>
             <ChevronDown className="size-3.5 shrink-0 text-subtle" />
           </button>
-          <div className="ml-auto hidden items-center gap-2 sm:flex">
-            <span className="text-[11px] text-muted tabular-nums">
-              {models.length.toLocaleString()} {t.models}
-            </span>
+          <div className="ml-auto flex items-center gap-1">
+            <Button variant="ghost" size="icon-sm" aria-label="Search"><Search className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Settings"><Settings2 className="size-4" /></Button>
+            <Button variant={workspaceOpen ? "secondary" : "ghost"} size="icon-sm" aria-label="Workspace" onClick={() => setWorkspaceOpen((v) => !v)}><PanelRight className="size-4" /></Button>
           </div>
         </header>
 
@@ -281,6 +284,40 @@ export function AppShell() {
           workStatus={workStatus}
         />
       </div>
+      {workspaceOpen ? (
+        <aside className="hidden w-[330px] shrink-0 border-l border-border bg-surface xl:flex xl:flex-col">
+          <div className="flex h-14 items-center justify-between border-b border-border px-4">
+            <div><p className="text-sm font-medium text-fg">Workspace</p><p className="text-[11px] text-muted">BOSSNU Agent</p></div>
+            <Button variant="ghost" size="icon-sm" aria-label="Close workspace" onClick={() => setWorkspaceOpen(false)}><X className="size-4" /></Button>
+          </div>
+          <div className="grid grid-cols-4 border-b border-border">
+            {(["workspace","diff","checks","preview"] as const).map((id) => (
+              <button key={id} type="button" onClick={() => setWorkspaceTab(id)} className={workspaceTab === id ? "border-b-2 border-fg px-2 py-3 text-[11px] text-fg" : "px-2 py-3 text-[11px] text-muted hover:text-fg"}>{id === "workspace" ? "Workspace" : id === "diff" ? "Diff" : id === "checks" ? "Checks" : "Preview"}</button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            {workspaceTab === "workspace" ? (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-elevated p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium"><GitBranch className="size-4" /> Repository</div>
+                  <p className="mt-2 text-xs text-muted">Connect a GitHub repository to work with project files.</p>
+                  <Button size="sm" variant="secondary" className="mt-3 w-full"><GitBranch className="size-3.5" /> Connect GitHub</Button>
+                </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between"><span className="text-[11px] font-medium uppercase tracking-wide text-muted">Files</span><Upload className="size-3.5 text-muted" /></div>
+                  <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-2 text-xs text-muted">Session files will appear here.</p></div>
+                </div>
+              </div>
+            ) : workspaceTab === "diff" ? (
+              <div className="rounded-lg bg-elevated/50 p-6 text-center"><Files className="mx-auto size-5 text-muted" /><p className="mt-3 text-sm text-fg">No changes yet</p><p className="mt-1 text-xs text-muted">File changes will appear here.</p></div>
+            ) : workspaceTab === "checks" ? (
+              <div className="rounded-lg bg-elevated/50 p-6 text-center"><p className="mx-auto flex size-5 items-center justify-center rounded-full border border-border text-[10px]">✓</p><p className="mt-3 text-sm text-fg">Checks</p><p className="mt-1 text-xs text-muted">Commit and deployment checks will appear here.</p></div>
+            ) : (
+              <div className="rounded-lg bg-elevated/50 p-6 text-center"><Play className="mx-auto size-5 text-muted" /><p className="mt-3 text-sm text-fg">Preview</p><p className="mt-1 text-xs text-muted">A live preview can appear here when the app is built.</p></div>
+            )}
+          </div>
+        </aside>
+      ) : null
 
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
         <SheetContent side="left" title={t.app} className="p-0">
