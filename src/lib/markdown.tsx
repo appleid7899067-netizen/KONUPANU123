@@ -69,7 +69,7 @@ const aliases: Record<string, string> = {
 };
 
 export function Markdown({ text }: { text: string }) {
-  const blocks = text.split(/\`\`\`/);
+  const blocks = text.split(/```/);
   const out: ReactNode[] = [];
 
   for (let i = 0; i < blocks.length; i++) {
