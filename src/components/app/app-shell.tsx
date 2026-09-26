@@ -48,6 +48,10 @@ export function AppShell() {
   const [directMode, setDirectMode] = useState(false);
   const [workspaceNotice, setWorkspaceNotice] = useState("");
   const [diffScope, setDiffScope] = useState<"turn" | "branch">("turn");
+  const [repoInput, setRepoInput] = useState("appleid7899067-netizen/KONUPANU123");
+  const [repoBranch, setRepoBranch] = useState("main");
+  const [repoRef, setRepoRef] = useState("");
+  const [repoLoading, setRepoLoading] = useState(false);
   const cancelRef = useRef(false);
 
   const featured = useMemo(() => pickFeatured(models), [models]);
@@ -136,6 +140,51 @@ export function AppShell() {
     const q = searchQuery.trim().toLowerCase();
     return !q || chat.title.toLowerCase().includes(q) || chat.messages.some((m) => m.content.toLowerCase().includes(q));
   });
+
+  const connectGitHubRepository = async () => {
+    const match = repoInput.trim().match(/^(?:https?:\\/\\/github\\.com\\/)?([^\\/\\s]+)\\/([^\\/\\s#]+?)(?:\\.git)?(?:#.*)?$/);
+    if (!match) {
+      setWorkspaceNotice("ใส่ repo แบบ owner/name เช่น appleid7899067-netizen/KONUPANU123");
+      return;
+    }
+    const [, owner, repo] = match;
+    const branch = repoBranch.trim() || "main";
+    setRepoLoading(true);
+    setWorkspaceNotice("กำลังเชื่อม GitHub และโหลดไฟล์จริง…");
+    try {
+      const meta = await fetch(`https://api.github.com/repos/${owner}/${repo}`).then((res) => {
+        if (!res.ok) throw new Error(`GitHub ${res.status}`);
+        return res.json() as Promise<{ default_branch?: string }>;
+      });
+      const resolvedBranch = branch || meta.default_branch || "main";
+      const tree = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(resolvedBranch)}?recursive=1`).then((res) => {
+        if (!res.ok) throw new Error(`Git tree ${res.status}`);
+        return res.json() as Promise<{ tree?: Array<{ path: string; type: string; size?: number }> }>;
+      });
+      const candidates = (tree.tree ?? [])
+        .filter((item) => item.type === "blob")
+        .filter((item) => !/(^|\\/)(node_modules|\\.git|dist|build|\\.next|\\.output|coverage)(\\/|$)/.test(item.path))
+        .filter((item) => !/\\.(png|jpe?g|gif|webp|ico|pdf|zip|woff2?|ttf|eot|mp4|webm|mov|mp3|wav|wasm)$/i.test(item.path))
+        .filter((item) => (item.size ?? 0) <= 180_000)
+        .slice(0, 30);
+      const files = [];
+      for (const item of candidates) {
+        const response = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(resolvedBranch)}/${item.path.split("/").map(encodeURIComponent).join("/")}`);
+        if (!response.ok) continue;
+        const content = await response.text();
+        files.push({ path: item.path, content, size: content.length, source: "agent" as const, updatedAt: Date.now() });
+      }
+      addWorkspaceFiles(files);
+      setRepoRef(`${owner}/${repo}@${resolvedBranch}`);
+      setRepoBranch(resolvedBranch);
+      setWorkspaceNotice(files.length ? `เชื่อมแล้ว • โหลด ${files.length} ไฟล์` : "เชื่อมแล้ว แต่ไม่พบไฟล์ข้อความที่โหลดได้");
+    } catch (error) {
+      setWorkspaceNotice(`GitHub เชื่อมไม่สำเร็จ: ${error instanceof Error ? error.message : "unknown error"}`);
+    } finally {
+      setRepoLoading(false);
+      window.setTimeout(() => setWorkspaceNotice(""), 2600);
+    }
+  };
 
   const downloadWorkspace = () => {
     const payload = JSON.stringify({ app: "BOSSNU", exportedAt: new Date().toISOString(), conversation }, null, 2);
@@ -257,8 +306,16 @@ export function AppShell() {
                 <div className="rounded-xl border border-border bg-surface p-4">
                   <div className="flex items-center gap-2"><GitBranch className="size-4" /><span className="text-sm font-medium">GitHub</span></div>
                   <p className="mt-1.5 text-xs leading-5 text-muted">Connect a repository and BOSSNU can work on an isolated copy, then prepare changes for review.</p>
-                  <Button variant="secondary" className="mt-3 w-full" onClick={() => { setWorkspaceNotice("GitHub repository connection is not configured yet."); window.setTimeout(() => setWorkspaceNotice(""), 2200); }}><GitBranch className="size-3.5" /> Connect repository</Button>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-muted"><span>Branch</span><span>working</span></div>
+                  <div className="mt-3 space-y-2">
+                    <input value={repoInput} onChange={(e) => setRepoInput(e.target.value)} placeholder="owner/repository" className="h-9 w-full rounded-lg border border-border bg-bg px-3 text-xs outline-none focus:border-fg/30" />
+                    <div className="flex gap-2">
+                      <input value={repoBranch} onChange={(e) => setRepoBranch(e.target.value)} placeholder="main" className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-bg px-3 text-xs outline-none focus:border-fg/30" />
+                      <Button variant="secondary" onClick={() => void connectGitHubRepository()} disabled={repoLoading}>
+                        <GitBranch className="size-3.5" /> {repoLoading ? "กำลังโหลด…" : "Connect"}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-muted"><span>Repository</span><span className="max-w-[210px] truncate">{repoRef || "ยังไม่ได้เชื่อม"}</span></div>
                 </div>
                 <div>
                   <div className="mb-2 flex items-center justify-between"><span className="text-[11px] font-medium uppercase tracking-wide text-muted">Files</span><span className="text-[10px] text-subtle">Session</span></div>
