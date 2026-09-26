@@ -35,7 +35,12 @@ export function AppShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
-  const [modeOpen, setModeOpen] = useState(false); const [searchOpen, setSearchOpen] = useState(false); const [settingsOpen, setSettingsOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [directMode, setDirectMode] = useState(false);
+  const [workspaceNotice, setWorkspaceNotice] = useState("");
   const cancelRef = useRef(false);
 
   const featured = useMemo(() => pickFeatured(models), [models]);
@@ -116,6 +121,23 @@ export function AppShell() {
     }
   };
 
+  const filteredChats = conversations.filter((chat) => {
+    const q = searchQuery.trim().toLowerCase();
+    return !q || chat.title.toLowerCase().includes(q) || chat.messages.some((m) => m.content.toLowerCase().includes(q));
+  });
+
+  const downloadWorkspace = () => {
+    const payload = JSON.stringify({ app: "BOSSNU", exportedAt: new Date().toISOString(), conversation }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bossnu-workspace-${conversation?.id ?? "session"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setWorkspaceNotice("Workspace exported");
+    window.setTimeout(() => setWorkspaceNotice(""), 1800);
+  };
+
   const footer = (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -143,16 +165,16 @@ export function AppShell() {
             <button type="button" onClick={() => setModeOpen((v) => !v)} className="flex items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-elevated">
               <Mark className="size-7 rounded-md" />
               <span className="text-sm font-medium">BOSSNU</span>
-              <span className="text-xs text-muted">Agent Mode</span>
+              <span className="text-xs text-muted">{directMode ? "Direct chat" : "Agent Mode"}</span>
               <ChevronDown className="size-3.5 text-muted" />
             </button>
             {modeOpen ? (
               <div className="absolute left-0 top-11 z-40 w-64 rounded-xl border border-border bg-surface p-1.5 shadow-2xl">
-                <button type="button" className="w-full rounded-lg bg-elevated px-3 py-2.5 text-left">
+                <button type="button" className={cn("w-full rounded-lg px-3 py-2.5 text-left", !directMode && "bg-elevated")} onClick={() => { setDirectMode(false); setModeOpen(false); }}>
                   <span className="block text-sm font-medium">Agent Mode</span>
                   <span className="mt-0.5 block text-[11px] text-muted">Plan, use tools, write files and iterate</span>
                 </button>
-                <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-muted hover:bg-elevated hover:text-fg" onClick={() => setModeOpen(false)}>
+                <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-muted hover:bg-elevated hover:text-fg" onClick={() => { setDirectMode(true); setModeOpen(false); }}>
                   <span className="block text-sm">Direct chat</span>
                   <span className="mt-0.5 block text-[11px]">Simple one-shot conversation</span>
                 </button>
@@ -166,8 +188,24 @@ export function AppShell() {
           </div>
         </header>
 
-        {searchOpen ? <div className="absolute right-3 top-14 z-50 rounded-xl border border-border bg-surface p-3 shadow-2xl"><input autoFocus placeholder="Search chats" className="h-10 w-72 rounded-lg border border-border bg-bg px-3 text-sm" onChange={(e) => { const q=e.target.value.toLowerCase(); const x=conversations.find(v => (v.title || "").toLowerCase().includes(q)); if (x && q) selectChat(x.id); }} /><button type="button" className="mt-2 text-xs text-muted" onClick={() => setSearchOpen(false)}>Close</button></div> : null}
-        {settingsOpen ? <div className="absolute right-3 top-14 z-50 rounded-xl border border-border bg-surface p-4 shadow-2xl"><p className="text-sm font-medium">Agent Mode</p><p className="mt-1 text-xs text-muted">Workspace, tools and iteration</p><button type="button" className="mt-3 text-xs text-muted" onClick={() => setSettingsOpen(false)}>Close</button></div> : null}
+        {searchOpen ? (
+          <div className="absolute right-3 top-14 z-50 w-[min(92vw,420px)] rounded-2xl border border-border bg-surface p-3 shadow-2xl">
+            <div className="flex items-center gap-2"><Search className="size-4 text-muted" /><input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search chats and messages" className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none" /><button type="button" onClick={() => { setSearchQuery(""); setSearchOpen(false); }}><X className="size-4 text-muted" /></button></div>
+            <div className="mt-2 max-h-72 overflow-y-auto border-t border-border pt-2">
+              {filteredChats.length ? filteredChats.map((chat) => <button key={chat.id} type="button" onClick={() => { selectChat(chat.id); setSearchOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-elevated"><span className="block truncate text-xs">{chat.title || "Untitled chat"}</span><span className="text-[10px] text-muted">{chat.messages.length} messages</span></button>) : <p className="px-3 py-6 text-center text-xs text-muted">No matching chats</p>}
+            </div>
+          </div>
+        ) : null}
+        {settingsOpen ? (
+          <div className="absolute right-3 top-14 z-50 w-[min(92vw,360px)] rounded-2xl border border-border bg-surface p-4 shadow-2xl">
+            <div className="flex items-center justify-between"><div><p className="text-sm font-medium">BOSSNU settings</p><p className="mt-1 text-xs text-muted">Agent Mode workspace</p></div><button type="button" onClick={() => setSettingsOpen(false)}><X className="size-4 text-muted" /></button></div>
+            <div className="mt-4 space-y-2">
+              <div className="rounded-xl bg-elevated p-3"><p className="text-xs font-medium">Puter</p><p className="mt-1 text-[11px] text-muted">{signedIn ? "Connected" : "Not connected"}</p></div>
+              <button type="button" onClick={() => { setSettingsOpen(false); setWorkspaceOpen(true); }} className="w-full rounded-xl bg-elevated p-3 text-left"><p className="text-xs font-medium">Workspace</p><p className="mt-1 text-[11px] text-muted">Open files, Diff, Checks and Preview</p></button>
+              <div className="rounded-xl bg-elevated p-3"><p className="text-xs font-medium">Language</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => setLocale("th")} className="rounded-md bg-surface px-3 py-1.5 text-[11px]">ไทย</button><button type="button" onClick={() => setLocale("en")} className="rounded-md bg-surface px-3 py-1.5 text-[11px]">English</button></div></div>
+            </div>
+          </div>
+        ) : null}
 
         <ChatPanel
           t={t}
@@ -191,7 +229,7 @@ export function AppShell() {
               <p className="text-sm font-medium">Workspace</p>
               <p className="text-[11px] text-muted">Session files and development tools</p>
             </div>
-            <Button variant="ghost" size="icon-sm" title="Download workspace" aria-label="Download workspace"><Download className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" title="Download workspace" aria-label="Download workspace" onClick={downloadWorkspace}><Download className="size-4" /></Button>
             <Button variant="ghost" size="icon-sm" title="Workspace settings" aria-label="Workspace settings"><Settings2 className="size-4" /></Button>
             <Button variant="ghost" size="icon-sm" onClick={() => setWorkspaceOpen(false)} aria-label="Close workspace"><X className="size-4" /></Button>
           </div>
@@ -202,13 +240,13 @@ export function AppShell() {
               </button>
             ))}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">{workspaceNotice ? <div className="mb-3 rounded-lg bg-elevated px-3 py-2 text-[11px]">{workspaceNotice}</div> : null}
             {workspaceTab === "workspace" ? (
               <div className="space-y-4">
                 <div className="rounded-xl border border-border bg-surface p-4">
                   <div className="flex items-center gap-2"><GitBranch className="size-4" /><span className="text-sm font-medium">GitHub</span></div>
                   <p className="mt-1.5 text-xs leading-5 text-muted">Connect a repository and BOSSNU can work on an isolated copy, then prepare changes for review.</p>
-                  <Button variant="secondary" className="mt-3 w-full"><GitBranch className="size-3.5" /> Connect repository</Button>
+                  <Button variant="secondary" className="mt-3 w-full" onClick={() => { setWorkspaceNotice("GitHub repository connection is not configured yet."); window.setTimeout(() => setWorkspaceNotice(""), 2200); }}><GitBranch className="size-3.5" /> Connect repository</Button>
                   <div className="mt-3 flex items-center justify-between text-[11px] text-muted"><span>Branch</span><span>working</span></div>
                 </div>
                 <div>
