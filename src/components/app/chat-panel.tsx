@@ -5,7 +5,7 @@ import { Markdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { providerLabel, type CatalogModel } from "@/lib/models";
 import type { Copy as CopyText } from "@/lib/i18n";
-import type { ChatMessage, Conversation } from "@/store/chat";
+import { useChat, type ChatMessage, type Conversation } from "@/store/chat";
 
 type ToolMode = "auto" | "web" | "sandbox" | "code";
 
@@ -31,6 +31,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
   const [files, setFiles] = useState<File[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolMode, setToolMode] = useState<ToolMode>("auto");
+  const addWorkspaceFiles = useChat((s) => s.addWorkspaceFiles);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
     setDraft("");
     const names = files.map((f) => f.name);
     const attached = await Promise.all(files.map(async (f) => `${f.name}:\\n${(await f.text()).slice(0, 120000)}`));
+    addWorkspaceFiles(await Promise.all(files.map(async (f) => ({ path: f.name, content: (await f.text()).slice(0, 120000), size: f.size, source: "upload" as const, updatedAt: Date.now() }))));
     setFiles([]);
     onSend(names.length ? `${value}\\n\\n[Tool mode: ${toolMode}]\\n\\n[Attached files]\\n${attached.join("\\n\\n")}` : `${value}\\n\\n[Tool mode: ${toolMode}]`);
   };
