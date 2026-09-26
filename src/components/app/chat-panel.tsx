@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, Check, Copy, Square } from "lucide-react";
+import { ArrowUp, Check, Copy, FilePlus2, Globe2, ImagePlus, Paperclip, Plus, Square, TerminalSquare, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/lib/markdown";
@@ -175,6 +175,9 @@ function Composer({
   onOpenModels: () => void;
 }) {
   const [value, setValue] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   const canSend = useMemo(() => value.trim().length > 0 && !streaming, [value, streaming]);
@@ -198,7 +201,10 @@ function Composer({
         const text = value.trim();
         if (!text) return;
         setValue("");
-        onSend(text);
+        setAttachments([]);
+        onSend(attachments.length ? `${text}
+
+[Attached: ${attachments.map((f) => f.name).join(", ")}]` : text);
       }}
     >
       <Textarea
@@ -214,24 +220,39 @@ function Composer({
           }
         }}
       />
-      <div className="flex items-center justify-between gap-2 px-1 pt-1 pb-0.5">
-        <button
-          type="button"
-          onClick={onOpenModels}
-          className="max-w-[60%] truncate rounded-sm px-2 py-1.5 text-left text-[11px] text-muted hover:bg-elevated hover:text-fg"
-        >
-          {modelName ?? t.selectModel}
-        </button>
-        <Button
-          type="submit"
-          size="icon-sm"
-          disabled={!streaming && !canSend}
-          aria-label={streaming ? t.stop : t.send}
-          variant={streaming ? "secondary" : "default"}
-        >
+      {attachments.length ? (
+        <div className="flex flex-wrap gap-1.5 px-1 pt-2">
+          {attachments.map((file) => (
+            <span key={file.name} className="inline-flex max-w-[220px] items-center gap-1.5 rounded-md bg-elevated px-2 py-1 text-[11px] text-muted">
+              <Paperclip className="size-3" />
+              <span className="truncate">{file.name}</span>
+              <button type="button" aria-label="Remove attachment" onClick={() => setAttachments((xs) => xs.filter((x) => x !== file))}><X className="size-3" /></button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <input ref={fileRef} type="file" multiple className="hidden" accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.csv,.html,.xml,.css,.js,.json" onChange={(e) => setAttachments(Array.from(e.target.files ?? []))} />
+      <div className="relative flex items-center justify-between gap-2 px-1 pt-1 pb-0.5">
+        <div className="flex min-w-0 items-center gap-1">
+          <div className="relative">
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Add" onClick={() => setToolsOpen((v) => !v)}><Plus className="size-4" /></Button>
+            {toolsOpen ? (
+              <div className="absolute bottom-10 left-0 z-30 w-52 rounded-lg border border-border bg-surface p-1.5 shadow-xl">
+                <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><Paperclip className="size-3.5" /> Upload files</button>
+                <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><ImagePlus className="size-3.5" /> Add image</button>
+                <button type="button" onClick={() => setToolsOpen(false)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><Globe2 className="size-3.5" /> Web search</button>
+                <button type="button" onClick={() => setToolsOpen(false)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><TerminalSquare className="size-3.5" /> Sandbox / Bash</button>
+                <button type="button" onClick={() => setToolsOpen(false)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><Wrench className="size-3.5" /> Agent tools</button>
+              </div>
+            ) : null}
+          </div>
+          <button type="button" onClick={() => fileRef.current?.click()} className="hidden items-center gap-1.5 rounded-sm px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg sm:flex"><FilePlus2 className="size-3.5" /> Attach</button>
+          <button type="button" onClick={onOpenModels} className="max-w-[190px] truncate rounded-sm px-2 py-1.5 text-left text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? t.selectModel}</button>
+        </div>
+        <Button type="submit" size="icon-sm" disabled={!streaming && !canSend} aria-label={streaming ? t.stop : t.send} variant={streaming ? "secondary" : "default"}>
           {streaming ? <Square className="size-3.5" /> : <ArrowUp className="size-4" />}
         </Button>
-      </div>
+      </div>/div>
     </form>
   );
 }
