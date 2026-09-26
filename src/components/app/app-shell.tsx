@@ -52,6 +52,10 @@ export function AppShell() {
   const [repoBranch, setRepoBranch] = useState("main");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
+  const [repoSha, setRepoSha] = useState("");
+  const [repoChecks, setRepoChecks] = useState<{ state: string; total: number; success: number; failed: number; pending: number } | null>(null);
+  const [repoCompare, setRepoCompare] = useState<{ status: string; ahead: number; behind: number; files: Array<{ filename: string; status: string; additions: number; deletions: number }> } | null>(null);
+  const [checksLoading, setChecksLoading] = useState(false);
   const cancelRef = useRef(false);
 
   const featured = useMemo(() => pickFeatured(models), [models]);
@@ -183,6 +187,36 @@ export function AppShell() {
     } finally {
       setRepoLoading(false);
       window.setTimeout(() => setWorkspaceNotice(""), 2600);
+    }
+  };
+
+  const refreshGitHubState = async () => {
+    const match = repoInput.trim().match(/^(?:https?:\\/\\/github\\.com\\/)?([^\\/\\s]+)\\/([^\\/\\s#]+?)(?:\\.git)?(?:#.*)?$/);
+    if (!match) return;
+    const [, owner, repo] = match;
+    const branch = repoBranch.trim() || "main";
+    setChecksLoading(true);
+    try {
+      const refData = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`).then((res) => res.json() as Promise<{ object?: { sha?: string } }>);
+      const sha = refData.object?.sha ?? "";
+      setRepoSha(sha);
+      if (sha) {
+        const status = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${sha}/status`).then((res) => res.json() as Promise<{ state?: string; total_count?: number; statuses?: Array<{ state?: string }> }>);
+        const statuses = status.statuses ?? [];
+        setRepoChecks({ state: status.state ?? "unknown", total: status.total_count ?? statuses.length, success: statuses.filter((x) => x.state === "success").length, failed: statuses.filter((x) => x.state === "failure" || x.state === "error").length, pending: statuses.filter((x) => x.state === "pending").length });
+      }
+      const meta = await fetch(`https://api.github.com/repos/${owner}/${repo}`).then((res) => res.json() as Promise<{ default_branch?: string }>);
+      const base = meta.default_branch ?? "main";
+      if (branch !== base) {
+        const compare = await fetch(`https://api.github.com/repos/${owner}/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}`).then((res) => res.json() as Promise<{ status?: string; ahead_by?: number; behind_by?: number; files?: Array<{ filename: string; status: string; additions: number; deletions: number }> }>);
+        setRepoCompare({ status: compare.status ?? "unknown", ahead: compare.ahead_by ?? 0, behind: compare.behind_by ?? 0, files: compare.files ?? [] });
+      } else {
+        setRepoCompare(null);
+      }
+    } catch (error) {
+      setWorkspaceNotice(`GitHub refresh failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    } finally {
+      setChecksLoading(false);
     }
   };
 
@@ -329,14 +363,17 @@ export function AppShell() {
                   <button type="button" onClick={() => setDiffScope("turn")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "turn" && "bg-surface")}>Last turn</button>
                   <button type="button" onClick={() => setDiffScope("branch")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "branch" && "bg-surface")}>Full branch</button>
                 </div>
-                <div className="rounded-xl border border-border bg-surface"><div className="border-b border-border px-3 py-2 text-[11px] text-muted">{workspaceFiles.length} workspace file{workspaceFiles.length === 1 ? "" : "s"}</div>{workspaceFiles.length ? workspaceFiles.map((file) => <div key={file.path} className="border-b border-border last:border-0"><div className="flex items-center gap-2 px-3 py-2"><span className="font-mono text-[10px]">M</span><span className="min-w-0 flex-1 truncate text-xs">{file.path}</span><span className="text-[10px] text-muted">{file.source}</span></div><pre className="max-h-28 overflow-auto bg-bg px-3 py-2 text-[9px] leading-4 text-muted">{file.content.slice(0, 2400)}</pre></div>) : <div className="px-4 py-8 text-center"><p className="text-sm">{diffScope === "turn" ? "No changes in this turn yet" : "No branch changes yet"}</p><p className="mt-1 text-xs text-muted">Upload or modify files to populate the workspace diff.</p></div>}</div>
+                <div className="rounded-xl border border-border bg-surface">
+                  <div className="flex items-center justify-between border-b border-border px-3 py-2"><span className="text-[11px] text-muted">{repoCompare ? `${repoCompare.files.length} GitHub files • +${repoCompare.ahead}/-${repoCompare.behind}` : `${workspaceFiles.length} workspace files`}</span><button type="button" onClick={() => void refreshGitHubState()} className="text-[10px] text-muted">{checksLoading ? "…" : "Refresh"}</button></div>
+                  {repoCompare?.files.length ? repoCompare.files.map((file) => <div key={file.filename} className="flex items-center gap-2 border-b border-border px-3 py-2"><span className="font-mono text-[10px]">{file.status === "added" ? "A" : file.status === "removed" ? "D" : "M"}</span><span className="min-w-0 flex-1 truncate text-xs">{file.filename}</span><span className="text-[10px] text-muted">+{file.additions} -{file.deletions}</span></div>) : <div className="px-4 py-8 text-center"><p className="text-sm">No GitHub branch diff</p><p className="mt-1 text-xs text-muted">Full branch reads GitHub compare data when a non-default branch is connected.</p></div>}
+                </div>
               </div>
             )}
             {workspaceTab === "checks" && (
               <div className="space-y-3">
-                <div className="rounded-xl border border-border bg-surface p-4"><p className="text-sm font-medium">Checks</p><p className="mt-1 text-xs leading-5 text-muted">Live status for the current local workspace.</p></div>
-                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><span className="text-xs">Workspace files</span><span className="text-[11px] text-muted">{workspaceFiles.length ? "Ready" : "Waiting"}</span></div><p className="mt-1 text-[11px] text-muted">{workspaceFiles.length ? workspaceFiles.length + " file" + (workspaceFiles.length === 1 ? "" : "s") + " available for review." : "Upload a file to start a workspace check."}</p></div>
-                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><span className="text-xs">GitHub CI</span><span className="text-[11px] text-muted">Not connected</span></div><p className="mt-1 text-[11px] text-muted">No repository CI endpoint is configured, so BOSSNU will not invent a pass/fail result.</p></div>
+                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><p className="text-sm font-medium">Checks</p><button type="button" onClick={() => void refreshGitHubState()} className="text-[10px] text-muted">{checksLoading ? "Refreshing…" : "Refresh"}</button></div><p className="mt-1 text-xs leading-5 text-muted">Live GitHub commit status for the connected branch.</p></div>
+                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><span className="text-xs">Commit</span><span className="font-mono text-[10px] text-muted">{repoSha ? repoSha.slice(0, 8) : "Not connected"}</span></div><div className="mt-3 flex items-center justify-between"><span className="text-xs">GitHub CI</span><span className="text-[11px]">{repoChecks?.state ?? "unknown"}</span></div><p className="mt-1 text-[11px] text-muted">{repoChecks ? `${repoChecks.success} passed • ${repoChecks.failed} failed • ${repoChecks.pending} pending • ${repoChecks.total} total` : "Connect a repository branch and refresh to read its real status."}</p></div>
+                <div className="rounded-xl border border-border bg-surface p-4"><div className="flex items-center justify-between"><span className="text-xs">Workspace files</span><span className="text-[11px] text-muted">{workspaceFiles.length ? "Ready" : "Waiting"}</span></div><p className="mt-1 text-[11px] text-muted">{workspaceFiles.length ? `${workspaceFiles.length} file${workspaceFiles.length === 1 ? "" : "s"} available.` : "No local workspace files."}</p></div>
               </div>
             )}
             {workspaceTab === "preview" && (
