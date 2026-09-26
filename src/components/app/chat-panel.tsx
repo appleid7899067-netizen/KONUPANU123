@@ -20,6 +20,7 @@ type Props = {
   onSignIn: () => void;
   onOpenModels: () => void;
   hero?: ReactNode;
+  workStatus?: string;
 };
 
 export function ChatPanel({
@@ -34,19 +35,26 @@ export function ChatPanel({
   onSignIn,
   onOpenModels,
   hero,
+  workStatus = "",
 }: Props) {
   const messages = conversation?.messages ?? [];
   const empty = messages.length === 0;
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, streaming]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distance < 180 || messages.length <= 2) {
+      bottomRef.current?.scrollIntoView({ block: "end", behavior: streaming ? "auto" : "smooth" });
+    }
+  }, [messages.length, streaming]);
 
   return (
     <div className="relative min-h-0 flex-1">
       <div className="absolute inset-0 flex flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto">
           {empty ? (
             hero
           ) : (
@@ -54,6 +62,7 @@ export function ChatPanel({
               {messages.map((m) => (
                 <MessageBubble key={m.id} message={m} t={t} streaming={streaming} model={model} />
               ))}
+              {workStatus ? <div className="mb-3 text-xs text-muted">{workStatus}</div> : null}
               <div ref={bottomRef} />
             </div>
           )}
