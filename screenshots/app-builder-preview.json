@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Prism",
+      "hasCanvas": false,
+      "bodyTextLen": 672,
+      "bodyTextHash": "b5f640b4df89ec41ff1ade8eadbb7686a4364d09cc3c6c4aa83f943ea5744e01",
+      "bodyTextPrefix": "Prism แชทกับ 500+ โมเดล AI แชทใหม่ บทสนทนา ยังไม่มีบทสนทนา ยังไม",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Prism",
+      "hasCanvas": false,
+      "bodyTextLen": 538,
+      "bodyTextHash": "c2a95cfbfeb784dfcc1f7df4dcec8a81daab8b075521b24a636759e3c74a60af",
+      "bodyTextPrefix": "Grok 4.6 Prism แชทกับ 500+ โมเดล AI ล็อกอินด้วย Puter — ไม่ต้องม",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
