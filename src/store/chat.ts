@@ -13,6 +13,8 @@ export type ChatMessage = {
   error?: boolean;
 };
 
+export type WorkspaceFile = { path: string; content: string; size: number; source: "upload" | "agent"; updatedAt: number };
+
 export type Conversation = {
   id: string;
   title: string;
@@ -29,6 +31,11 @@ type ChatState = {
   activeId: string | null;
   streaming: boolean;
   workStatus: string;
+  workspaceFiles: WorkspaceFile[];
+  selectedWorkspaceFile: string | null;
+  addWorkspaceFiles: (files: WorkspaceFile[]) => void;
+  selectWorkspaceFile: (path: string | null) => void;
+  clearWorkspaceFiles: () => void;
   setLocale: (locale: Locale) => void;
   setModels: (models: CatalogModel[]) => void;
   setModelId: (id: string) => void;
@@ -58,6 +65,8 @@ export const useChat = create<ChatState>((set, get) => ({
   activeId: null,
   streaming: false,
   workStatus: "",
+  workspaceFiles: [],
+  selectedWorkspaceFile: null,
 
   setLocale: (locale) => {
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_LOCALE, locale);
@@ -178,6 +187,14 @@ export const useChat = create<ChatState>((set, get) => ({
 
   setStreaming: (streaming) => set({ streaming, workStatus: streaming ? get().workStatus : "" }),
   setWorkStatus: (workStatus) => set({ workStatus }),
+  addWorkspaceFiles: (files) => set((s) => {
+    const map = new Map(s.workspaceFiles.map((file) => [file.path, file]));
+    files.forEach((file) => map.set(file.path, file));
+    const next = Array.from(map.values());
+    return { workspaceFiles: next, selectedWorkspaceFile: s.selectedWorkspaceFile ?? next[0]?.path ?? null };
+  }),
+  selectWorkspaceFile: (path) => set({ selectedWorkspaceFile: path }),
+  clearWorkspaceFiles: () => set({ workspaceFiles: [], selectedWorkspaceFile: null }),
 }));
 
 export const KV_KEY = "prism.v1.conversations";
