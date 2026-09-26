@@ -311,16 +311,7 @@ export function AppShell() {
                   </div>
                 )}
               </div>
-            ) : null
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                  <p className="text-sm">Preview</p>
-                  <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p>
-                </div>
-              )
-            : null
-          </div>
+            ) : null}
         </aside>
       ) : null}
 
