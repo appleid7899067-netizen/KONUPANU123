@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, ChevronRight, Copy, Globe2, ImagePlus, Paperclip, Plus, Square, TerminalSquare, Wrench, X } from "lucide-react";
+import { ArrowUp, Check, ChevronRight, Copy, Globe2, ImagePlus, Paperclip, Plus, Square, TerminalSquare, Wrench, X, Mic, Brain, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,29 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
   const [files, setFiles] = useState<File[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolMode, setToolMode] = useState<ToolMode>("auto");
+  const [responseMode, setResponseMode] = useState<"instant" | "thinking">("instant");
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleVoice = () => {
+    if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) { setDraft(`${draft}${draft ? " " : ""}[Voice input is not supported by this browser]`); return; }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "th-TH";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => { setListening(false); recognitionRef.current = null; };
+    recognition.onerror = () => { setListening(false); recognitionRef.current = null; };
+    recognition.onresult = (event: any) => {
+      let text = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) text += event.results[i][0].transcript;
+      if (text) setDraft(text);
+    };
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
   const addWorkspaceFiles = useChat((s) => s.addWorkspaceFiles);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -50,7 +73,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
     const attached = await Promise.all(files.map(async (f) => `${f.name}:\\n${(await f.text()).slice(0, 120000)}`));
     addWorkspaceFiles(await Promise.all(files.map(async (f) => ({ path: f.name, content: (await f.text()).slice(0, 120000), size: f.size, source: "upload" as const, updatedAt: Date.now() }))));
     setFiles([]);
-    onSend(names.length ? `${value}\\n\\n[Tool mode: ${toolMode}]\\n\\n[Attached files]\\n${attached.join("\\n\\n")}` : `${value}\\n\\n[Tool mode: ${toolMode}]`);
+    onSend(names.length ? `${value}\\n\\n[Response mode: ${responseMode}]\\n[Tool mode: ${toolMode}]\\n\\n[Attached files]\\n${attached.join("\\n\\n")}` : `${value}\\n\\n[Response mode: ${responseMode}]\\n[Tool mode: ${toolMode}]`);
   };
 
   return (
@@ -86,6 +109,10 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
             modelName={model?.name}
             toolMode={toolMode}
             setToolMode={setToolMode}
+            responseMode={responseMode}
+            setResponseMode={setResponseMode}
+            listening={listening}
+            onVoice={toggleVoice}
           />
         </div>
       </div>
@@ -172,9 +199,13 @@ function Composer({ t, draft, setDraft, files, setFiles, menuOpen, setMenuOpen, 
   modelName?: string;
   toolMode: ToolMode;
   setToolMode: (mode: ToolMode) => void;
+  responseMode: "instant" | "thinking";
+  setResponseMode: (mode: "instant" | "thinking") => void;
+  listening: boolean;
+  onVoice: () => void;
 }) {
   const disabled = !signedIn;
-  const accept = ".png,.webp,.jpg,.jpeg,.pdf,.gif,.txt,.md,.csv,.html,.xml,.css,.js,.json";
+  const accept = ".png,.webp,.jpg,.jpeg,.pdf,.gif,.txt,.md,.csv,.html,.xml,.css,.js,.json,.ts,.tsx,.jsx,.py,.java,.go,.rs,.php,.sql,.yaml,.yml,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (disabled) return onSignIn(); onSend(); }} className="rounded-[22px] border border-border bg-surface px-3 py-2 shadow-[0_8px_40px_rgba(0,0,0,.16)]">
       {files.length ? <div className="flex flex-wrap gap-1.5 px-1 pt-1">{files.map((file) => <span key={file.name} className="inline-flex max-w-[220px] items-center gap-1.5 rounded-lg bg-elevated px-2 py-1 text-[11px]"><Paperclip className="size-3 text-muted" /><span className="truncate">{file.name}</span><button type="button" onClick={() => setFiles(files.filter((x) => x !== file))}><X className="size-3 text-muted" /></button></span>)}</div> : null}
@@ -193,8 +224,8 @@ function Composer({ t, draft, setDraft, files, setFiles, menuOpen, setMenuOpen, 
             </div> : null}
           </div>
           <button type="button" onClick={() => fileRef.current?.click()} className="hidden rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg sm:block">Attach</button>
-          <span className="max-w-[120px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted">{toolMode === "auto" ? "Auto" : toolMode}</span>
-          <button type="button" onClick={onOpenModels} className="max-w-[180px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? "Model"}</button>
+          <button type="button" onClick={() => setResponseMode(responseMode === "instant" ? "thinking" : "instant")} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg" aria-label="Response mode">{responseMode === "thinking" ? <Brain className="size-3.5" /> : <Zap className="size-3.5" />}{responseMode === "thinking" ? "Thinking" : "Instant"}</button><span className="max-w-[90px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted">{toolMode === "auto" ? "Auto" : toolMode}</span>
+          <button type="button" onClick={onVoice} className={cn("rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg", listening && "bg-elevated text-fg")} aria-label="Voice input"><Mic className="size-3.5" /></button><button type="button" onClick={onOpenModels} className="max-w-[180px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? "Model"}</button>
         </div>
         <Button type="submit" size="icon-sm" disabled={!streaming && (!draft.trim() || disabled)} aria-label={streaming ? t.stop : t.send} onClick={streaming ? onStop : undefined}>{streaming ? <Square className="size-3.5" /> : <ArrowUp className="size-4" />}</Button>
       </div>
