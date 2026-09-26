@@ -14,6 +14,9 @@ export default defineEventHandler(async (event) => {
     base?: string;
     branch?: string;
     message?: string;
+    openPr?: boolean;
+    title?: string;
+    body?: string;
     files?: Array<{ path?: string; content?: string }>;
   }>(event);
 
@@ -97,7 +100,19 @@ export default defineEventHandler(async (event) => {
       results.push({ path, commit: result.commit?.sha || null });
     }
 
-    return { ok: true, owner, repo, base, branch, files: results };
+    let pullRequest: unknown = null;
+    if (body?.openPr && branch !== base) {
+      pullRequest = await gh(`/repos/${owner}/${repo}/pulls`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: String(body.title || message),
+          head: branch,
+          base,
+          body: String(body.body || "Created by BOSSNU Agent Mode after workspace verification."),
+        }),
+      });
+    }
+    return { ok: true, owner, repo, base, branch, files: results, pullRequest };
   } catch (error) {
     setResponseStatus(event, 502);
     return { ok: false, error: error instanceof Error ? error.message : "GitHub write failed." };
