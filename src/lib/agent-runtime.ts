@@ -3,7 +3,8 @@ export type AgentAction =
   | { type: "delete_file"; path: string }
   | { type: "read_file"; path: string }
   | { type: "web_fetch"; url: string }
-  | { type: "sandbox_exec"; language: string; code: string };
+  | { type: "sandbox_exec"; language: string; code: string }
+  | { type: "github_write"; owner: string; repo: string; base?: string; branch: string; message: string };
 
 export type AgentPlan = {
   goal: string;
@@ -48,6 +49,9 @@ export function parseAgentPlan(raw: string): AgentPlan | null {
         if (action.type === "sandbox_exec" && typeof action.language === "string" && typeof action.code === "string" && action.code.length <= MAX_FILE_SIZE) {
           return { type: "sandbox_exec", language: action.language.slice(0, 40), code: action.code } as AgentAction;
         }
+        if (action.type === "github_write" && typeof action.owner === "string" && typeof action.repo === "string" && typeof action.branch === "string" && typeof action.message === "string") {
+          return { type: "github_write", owner: action.owner, repo: action.repo, base: typeof action.base === "string" ? action.base : "main", branch: action.branch, message: action.message } as AgentAction;
+        }
         return null;
       })
       .filter((action): action is AgentAction => Boolean(action));
@@ -66,7 +70,7 @@ export function buildAgentPlannerPrompt(goal: string, files: Array<{ path: strin
   return `You are BOSSNU Agent Mode. Plan concrete work for the user's goal.
 
 Return ONLY valid JSON with this shape:
-{"goal":"...","actions":[{"type":"write_file","path":"...","content":"..."},{"type":"delete_file","path":"..."},{"type":"read_file","path":"..."},{"type":"web_fetch","url":"https://..."},{"type":"sandbox_exec","language":"javascript","code":"console.log(1)"}],"verify":["..."]}
+{"goal":"...","actions":[{"type":"write_file","path":"...","content":"..."},{"type":"delete_file","path":"..."},{"type":"read_file","path":"..."},{"type":"web_fetch","url":"https://..."},{"type":"sandbox_exec","language":"javascript","code":"console.log(1)"},{"type":"github_write","owner":"owner","repo":"repo","base":"main","branch":"bossnu/task","message":"BOSSNU Agent update"}],"verify":["..."]}
 
 Rules:
 - Prefer editing existing workspace files over inventing unrelated files.
@@ -75,6 +79,7 @@ Rules:
 - Maximum 8 actions.
 - web_fetch is for public HTTP(S) pages only.
 - sandbox_exec runs code through BOSSNU's server sandbox endpoint and returns stdout/stderr; use it when execution or tests are needed.
+- github_write commits workspace files to a branch through the server GitHub endpoint; use it only when the requested goal requires publishing changes.
 - Do not claim GitHub commits, deployment, or private APIs were executed unless evidence is returned.
 - Keep the plan directly tied to the user's goal.
 
@@ -158,6 +163,32 @@ export async function executeSandboxActions(plan: AgentPlan, workspaceFiles: Arr
       results.push(`SANDBOX [${response.status}] ${action.language}\nstdout:\n${data?.stdout || ""}\nstderr:\n${data?.stderr || data?.error || ""}\nexit: ${data?.code ?? "unknown"}\nduration: ${data?.durationMs ?? "unknown"}ms`);
     } catch (error) {
       results.push(`SANDBOX [failed] ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
+  return results;
+}
+
+
+export async function executeGitHubWrites(plan: AgentPlan, workspaceFiles: Array<{ path: string; content: string }>) {
+  const results: string[] = [];
+  for (const action of plan.actions.filter((item): item is Extract<AgentAction, { type: "github_write" }> => item.type === "github_write").slice(0, 1)) {
+    try {
+      const response = await fetch("/api/github-write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner: action.owner,
+          repo: action.repo,
+          base: action.base || "main",
+          branch: action.branch,
+          message: action.message,
+          files: workspaceFiles.slice(0, 30).map((file) => ({ path: file.path, content: file.content.slice(0, MAX_FILE_SIZE) })),
+        }),
+      });
+      const data = await response.json();
+      results.push(`GITHUB [${response.status}] ${action.owner}/${action.repo}@${action.branch}\n${data?.ok ? `committed ${data.files?.length || 0} files` : data?.error || "write failed"}`);
+    } catch (error) {
+      results.push(`GITHUB [failed] ${error instanceof Error ? error.message : "unknown error"}`);
     }
   }
   return results;
