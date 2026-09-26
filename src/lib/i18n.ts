@@ -2,8 +2,8 @@ export type Locale = "th" | "en";
 
 export const copy = {
   th: {
-    app: "Prism",
-    tagline: "แชทกับ 500+ โมเดล AI",
+    app: "BOSSNU",
+    tagline: "AI Agent Workspace",
     sub: "ล็อกอินด้วย Puter — ไม่ต้องมี API key ค่าใช้จ่ายคิดกับบัญชีของคุณ",
     signIn: "เข้าสู่ระบบด้วย Puter",
     signingIn: "กำลังเปิดหน้าต่างเข้าสู่ระบบ…",
@@ -48,8 +48,8 @@ export const copy = {
     catalogCount: "โมเดลในแคตตาล็อก",
   },
   en: {
-    app: "Prism",
-    tagline: "Chat with 500+ AI models",
+    app: "BOSSNU",
+    tagline: "AI Agent Workspace",
     sub: "Sign in with Puter — no API keys. Usage bills to your Puter account.",
     signIn: "Sign in with Puter",
     signingIn: "Opening sign-in…",
