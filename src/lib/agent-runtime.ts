@@ -2,7 +2,8 @@ export type AgentAction =
   | { type: "write_file"; path: string; content: string }
   | { type: "delete_file"; path: string }
   | { type: "read_file"; path: string }
-  | { type: "web_fetch"; url: string };
+  | { type: "web_fetch"; url: string }
+  | { type: "sandbox_exec"; language: string; code: string };
 
 export type AgentPlan = {
   goal: string;
@@ -44,6 +45,9 @@ export function parseAgentPlan(raw: string): AgentPlan | null {
         if (action.type === "web_fetch" && typeof action.url === "string" && /^https?:\/\//i.test(action.url)) {
           return { type: "web_fetch", url: action.url } as AgentAction;
         }
+        if (action.type === "sandbox_exec" && typeof action.language === "string" && typeof action.code === "string" && action.code.length <= MAX_FILE_SIZE) {
+          return { type: "sandbox_exec", language: action.language.slice(0, 40), code: action.code } as AgentAction;
+        }
         return null;
       })
       .filter((action): action is AgentAction => Boolean(action));
@@ -62,7 +66,7 @@ export function buildAgentPlannerPrompt(goal: string, files: Array<{ path: strin
   return `You are BOSSNU Agent Mode. Plan concrete work for the user's goal.
 
 Return ONLY valid JSON with this shape:
-{"goal":"...","actions":[{"type":"write_file","path":"...","content":"..."},{"type":"delete_file","path":"..."},{"type":"read_file","path":"..."},{"type":"web_fetch","url":"https://..."}],"verify":["..."]}
+{"goal":"...","actions":[{"type":"write_file","path":"...","content":"..."},{"type":"delete_file","path":"..."},{"type":"read_file","path":"..."},{"type":"web_fetch","url":"https://..."},{"type":"sandbox_exec","language":"javascript","code":"console.log(1)"}],"verify":["..."]}
 
 Rules:
 - Prefer editing existing workspace files over inventing unrelated files.
@@ -70,7 +74,8 @@ Rules:
 - Never use absolute paths or "..".
 - Maximum 8 actions.
 - web_fetch is for public HTTP(S) pages only.
-- Do not claim that bash, deployment, GitHub commits, or private APIs were executed. Those require connected tools.
+- sandbox_exec runs code through BOSSNU's server sandbox endpoint and returns stdout/stderr; use it when execution or tests are needed.
+- Do not claim GitHub commits, deployment, or private APIs were executed unless evidence is returned.
 - Keep the plan directly tied to the user's goal.
 
 USER GOAL:
@@ -130,6 +135,29 @@ export async function executeWebFetches(plan: AgentPlan) {
       results.push(`WEB ${action.url} [${response.status}]\n${body}`);
     } catch (error) {
       results.push(`WEB ${action.url} [failed] ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
+  return results;
+}
+
+
+export async function executeSandboxActions(plan: AgentPlan, workspaceFiles: Array<{ path: string; content: string }>) {
+  const results: string[] = [];
+  for (const action of plan.actions.filter((item): item is Extract<AgentAction, { type: "sandbox_exec" }> => item.type === "sandbox_exec").slice(0, 3)) {
+    try {
+      const response = await fetch("/api/sandbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: action.language,
+          code: action.code,
+          files: workspaceFiles.slice(0, 20).map((file) => ({ path: file.path, content: file.content.slice(0, 120000) })),
+        }),
+      });
+      const data = await response.json();
+      results.push(`SANDBOX [${response.status}] ${action.language}\nstdout:\n${data?.stdout || ""}\nstderr:\n${data?.stderr || data?.error || ""}\nexit: ${data?.code ?? "unknown"}\nduration: ${data?.durationMs ?? "unknown"}ms`);
+    } catch (error) {
+      results.push(`SANDBOX [failed] ${error instanceof Error ? error.message : "unknown error"}`);
     }
   }
   return results;
