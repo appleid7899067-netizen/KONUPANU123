@@ -4,7 +4,7 @@ export type AgentAction =
   | { type: "read_file"; path: string }
   | { type: "web_fetch"; url: string }
   | { type: "sandbox_exec"; language: string; code: string }
-  | { type: "github_write"; owner: string; repo: string; base?: string; branch: string; message: string };
+  | { type: "github_write"; owner: string; repo: string; base?: string; branch: string; message: string; openPr?: boolean };
 
 export type AgentPlan = {
   goal: string;
@@ -50,7 +50,7 @@ export function parseAgentPlan(raw: string): AgentPlan | null {
           return { type: "sandbox_exec", language: action.language.slice(0, 40), code: action.code } as AgentAction;
         }
         if (action.type === "github_write" && typeof action.owner === "string" && typeof action.repo === "string" && typeof action.branch === "string" && typeof action.message === "string") {
-          return { type: "github_write", owner: action.owner, repo: action.repo, base: typeof action.base === "string" ? action.base : "main", branch: action.branch, message: action.message } as AgentAction;
+          return { type: "github_write", owner: action.owner, repo: action.repo, base: typeof action.base === "string" ? action.base : "main", branch: action.branch, message: action.message, openPr: Boolean(action.openPr) } as AgentAction;
         }
         return null;
       })
@@ -70,7 +70,7 @@ export function buildAgentPlannerPrompt(goal: string, files: Array<{ path: strin
   return `You are BOSSNU Agent Mode. Plan concrete work for the user's goal.
 
 Return ONLY valid JSON with this shape:
-{"goal":"...","actions":[{"type":"write_file","path":"...","content":"..."},{"type":"delete_file","path":"..."},{"type":"read_file","path":"..."},{"type":"web_fetch","url":"https://..."},{"type":"sandbox_exec","language":"javascript","code":"console.log(1)"},{"type":"github_write","owner":"owner","repo":"repo","base":"main","branch":"bossnu/task","message":"BOSSNU Agent update"}],"verify":["..."]}
+{"goal":"...","actions":[{"type":"write_file","path":"...","content":"..."},{"type":"delete_file","path":"..."},{"type":"read_file","path":"..."},{"type":"web_fetch","url":"https://..."},{"type":"sandbox_exec","language":"javascript","code":"console.log(1)"},{"type":"github_write","owner":"owner","repo":"repo","base":"main","branch":"bossnu/task","message":"BOSSNU Agent update","openPr":true}],"verify":["..."]}
 
 Rules:
 - Prefer editing existing workspace files over inventing unrelated files.
@@ -182,6 +182,9 @@ export async function executeGitHubWrites(plan: AgentPlan, workspaceFiles: Array
           base: action.base || "main",
           branch: action.branch,
           message: action.message,
+          openPr: action.openPr,
+          title: action.message,
+          body: "BOSSNU Agent Mode: verified workspace changes.",
           files: workspaceFiles.slice(0, 30).map((file) => ({ path: file.path, content: file.content.slice(0, MAX_FILE_SIZE) })),
         }),
       });
