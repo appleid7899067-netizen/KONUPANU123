@@ -309,7 +309,7 @@ export function AppShell() {
                   <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p>
                 </div>
               )
-            ) : null
+            : null
           </div>
         </aside>
       ) : null}
