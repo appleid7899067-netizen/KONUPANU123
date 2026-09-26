@@ -12,7 +12,7 @@ import { streamChat, type PuterChatMessage } from "@/lib/puter";
 import { useChat } from "@/store/chat";
 import { cn } from "@/lib/utils";
 import { WorkspacePreview } from "@/components/app/workspace-preview";
-import { applyAgentActions, buildAgentPlannerPrompt, executeSandboxActions, executeWebFetches, parseAgentPlan } from "@/lib/agent-runtime";
+import { applyAgentActions, buildAgentPlannerPrompt, executeGitHubWrites, executeSandboxActions, executeWebFetches, parseAgentPlan } from "@/lib/agent-runtime";
 
 export function AppShell() {
   const { ready, failed, signedIn, user, signIn, signOut, puter } = usePuter();
@@ -124,7 +124,9 @@ export function AppShell() {
               const webEvidence = await executeWebFetches(plan);
               const sandboxEvidence = await executeSandboxActions(plan, applied.files.map((file) => ({ path: file.path, content: file.content })));
               if (sandboxEvidence.length) setWorkStatus(locale === "th" ? "กำลังตรวจผลจาก Sandbox…" : "Verifying sandbox output…");
-              const evidence = [...applied.evidence, ...webEvidence, ...sandboxEvidence];
+              const githubEvidence = await executeGitHubWrites(plan, applied.files.map((file) => ({ path: file.path, content: file.content })));
+              if (githubEvidence.length) setWorkStatus(locale === "th" ? "กำลังตรวจ GitHub…" : "Verifying GitHub…");
+              const evidence = [...applied.evidence, ...webEvidence, ...sandboxEvidence, ...githubEvidence];
               const verification = plan.verify.length ? `Requested verification:\n- ${plan.verify.join("\n- ")}` : "";
               const finalPrompt = [
                 "You are BOSSNU completing an Agent Mode task.",
