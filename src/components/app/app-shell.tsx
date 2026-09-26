@@ -265,10 +265,7 @@ export function AppShell() {
                   <button type="button" onClick={() => setDiffScope("turn")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "turn" && "bg-surface")}>Last turn</button>
                   <button type="button" onClick={() => setDiffScope("branch")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "branch" && "bg-surface")}>Full branch</button>
                 </div>
-                <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                  <p className="text-sm">{diffScope === "turn" ? "No changes in this turn yet" : "No branch changes yet"}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted">Code changes will appear here as the agent works.</p>
-                </div>
+                <div className="rounded-xl border border-border bg-surface"><div className="border-b border-border px-3 py-2 text-[11px] text-muted">{workspaceFiles.length} workspace file{workspaceFiles.length === 1 ? "" : "s"}</div>{workspaceFiles.length ? workspaceFiles.map((file) => <div key={file.path} className="border-b border-border last:border-0"><div className="flex items-center gap-2 px-3 py-2"><span className="font-mono text-[10px]">M</span><span className="min-w-0 flex-1 truncate text-xs">{file.path}</span><span className="text-[10px] text-muted">{file.source}</span></div><pre className="max-h-28 overflow-auto bg-bg px-3 py-2 text-[9px] leading-4 text-muted">{file.content.slice(0, 2400)}</pre></div>) : <div className="px-4 py-8 text-center"><p className="text-sm">{diffScope === "turn" ? "No changes in this turn yet" : "No branch changes yet"}</p><p className="mt-1 text-xs text-muted">Upload or modify files to populate the workspace diff.</p></div>}</div>
               </div>
             ) : workspaceTab === "checks" ? (
               <div className="rounded-xl border border-border bg-surface p-8 text-center">
