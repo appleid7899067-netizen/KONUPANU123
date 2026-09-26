@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Download, GitBranch, Menu, PanelRight, Search, Settings2, X } from "lucide-react";
+import { ChevronDown, Download, GitBranch, Github, Menu, PanelRight, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ChatPanel } from "@/components/app/chat-panel";
@@ -43,6 +43,18 @@ export function AppShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
+  const githubAppSlug = (import.meta.env.VITE_GITHUB_APP_SLUG as string | undefined)?.trim();
+
+  const installGitHubApp = () => {
+    if (!githubAppSlug) {
+      setWorkspaceNotice("ยังไม่ได้ตั้งค่า VITE_GITHUB_APP_SLUG บนระบบ deploy");
+      return;
+    }
+    const returnTo = window.location.href;
+    const url = new URL(`https://github.com/apps/${encodeURIComponent(githubAppSlug)}/installations/new`);
+    url.searchParams.set("state", btoa(JSON.stringify({ returnTo, source: "bossnu" })));
+    window.location.href = url.toString();
+  };
   const [modeOpen, setModeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -410,6 +422,10 @@ export function AppShell() {
                   <div className="flex items-center gap-2"><GitBranch className="size-4" /><span className="text-sm font-medium">GitHub</span></div>
                   <p className="mt-1.5 text-xs leading-5 text-muted">Connect a repository and BOSSNU can work on an isolated copy, then prepare changes for review.</p>
                   <div className="mt-3 space-y-2">
+                    <Button className="w-full justify-center" onClick={installGitHubApp} disabled={!githubAppSlug}>
+                      <Github className="size-4" /> {githubAppSlug ? "GitHub OAuth • เลือกรีโพ" : "GitHub App ยังไม่ได้ตั้งค่า"}
+                    </Button>
+                    <p className="text-[10px] leading-4 text-muted">กดแล้ว GitHub จะให้ยืนยันสิทธิ์และเลือกได้ทั้ง All repositories หรือ Only select repositories ตามสิทธิ์ของ GitHub App</p>
                     <input value={repoInput} onChange={(e) => setRepoInput(e.target.value)} placeholder="owner/repository" className="h-9 w-full rounded-lg border border-border bg-bg px-3 text-xs outline-none focus:border-fg/30" />
                     <div className="flex gap-2">
                       <input value={repoBranch} onChange={(e) => setRepoBranch(e.target.value)} placeholder="main" className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-bg px-3 text-xs outline-none focus:border-fg/30" />
