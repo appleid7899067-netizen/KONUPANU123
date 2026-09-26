@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Download, GitBranch, Menu, PanelRight, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -34,6 +34,7 @@ export function AppShell() {
   const workspaceFiles = useChat((s) => s.workspaceFiles);
   const selectedWorkspaceFile = useChat((s) => s.selectedWorkspaceFile);
   const selectWorkspaceFile = useChat((s) => s.selectWorkspaceFile);
+  const hydrateWorkspace = useChat((s) => s.hydrateWorkspace);
 
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
@@ -51,6 +52,10 @@ export function AppShell() {
   const featured = useMemo(() => pickFeatured(models), [models]);
   const model = models.find((m) => m.id === modelId) ?? featured[0];
   const conversation = conversations.find((c) => c.id === activeId) ?? null;
+
+  useEffect(() => {
+    hydrateWorkspace();
+  }, [hydrateWorkspace]);
 
   const stop = () => {
     cancelRef.current = true;
@@ -268,15 +273,42 @@ export function AppShell() {
                 <div className="rounded-xl border border-border bg-surface"><div className="border-b border-border px-3 py-2 text-[11px] text-muted">{workspaceFiles.length} workspace file{workspaceFiles.length === 1 ? "" : "s"}</div>{workspaceFiles.length ? workspaceFiles.map((file) => <div key={file.path} className="border-b border-border last:border-0"><div className="flex items-center gap-2 px-3 py-2"><span className="font-mono text-[10px]">M</span><span className="min-w-0 flex-1 truncate text-xs">{file.path}</span><span className="text-[10px] text-muted">{file.source}</span></div><pre className="max-h-28 overflow-auto bg-bg px-3 py-2 text-[9px] leading-4 text-muted">{file.content.slice(0, 2400)}</pre></div>) : <div className="px-4 py-8 text-center"><p className="text-sm">{diffScope === "turn" ? "No changes in this turn yet" : "No branch changes yet"}</p><p className="mt-1 text-xs text-muted">Upload or modify files to populate the workspace diff.</p></div>}</div>
               </div>
             ) : workspaceTab === "checks" ? (
-              <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                <p className="text-sm">Checks</p>
-                <p className="mt-1 text-xs leading-5 text-muted">Commit and pull request checks will appear here.</p>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-sm font-medium">Checks</p>
+                  <p className="mt-1 text-xs leading-5 text-muted">Live status for the current local workspace.</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">Workspace files</span>
+                    <span className="text-[11px] text-muted">{workspaceFiles.length ? "Ready" : "Waiting"}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted">{workspaceFiles.length ? workspaceFiles.length + " file" + (workspaceFiles.length === 1 ? "" : "s") + " available for review." : "Upload a file to start a workspace check."}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">GitHub CI</span>
+                    <span className="text-[11px] text-muted">Not connected</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted">No repository CI endpoint is configured, so BOSSNU will not invent a pass/fail result.</p>
+                </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                <p className="text-sm">Preview</p>
-                <p className="mt-1 text-xs leading-5 text-muted">A running app preview will appear here when available.</p>
-              </div>
+              {selectedWorkspaceFile?.toLowerCase().endsWith(".html") ? (
+                <div className="overflow-hidden rounded-xl border border-border bg-white">
+                  <iframe
+                    title="BOSSNU workspace preview"
+                    sandbox=""
+                    srcDoc={workspaceFiles.find((file) => file.path === selectedWorkspaceFile)?.content ?? ""}
+                    className="h-[520px] w-full border-0"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-surface p-8 text-center">
+                  <p className="text-sm">Preview</p>
+                  <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p>
+                </div>
+              )}
             )}
           </div>
         </aside>
