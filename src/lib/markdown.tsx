@@ -52,22 +52,26 @@ function inline(text: string): ReactNode[] {
   return nodes;
 }
 
-function CodeBlock({ code, language }: { code: string; language: string }) {\n  const [running, setRunning] = useState(false);\n  const [output, setOutput] = useState("");\n  const run = async () => {\n    setRunning(true);\n    setOutput("กำลังรัน…");\n    try {\n      const response = await fetch("https://emkc.org/api/v2/piston/execute", {\n        method: "POST", headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ language: language || "javascript", version: "*", files: [{ content: code }] }),\n      });\n      const data = await response.json();\n      const result = data?.run ?? data;\n      setOutput([result?.stdout, result?.stderr, result?.output].filter(Boolean).join("\\n") || `จบการทำงาน (exit ${result?.code ?? 0})`);\n    } catch (error) {\n      setOutput(`รันไม่สำเร็จ: ${error instanceof Error ? error.message : "unknown error"}`);\n    } finally { setRunning(false); }\n  };\n  return <div className="my-4 overflow-hidden rounded-xl border border-border bg-elevated">\n    <div className="flex items-center justify-between border-b border-border px-3 py-2">\n      <span className="font-mono text-[11px] text-muted">{language || "code"}</span>\n      <button type="button" onClick={run} disabled={running} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-fg disabled:opacity-50">\n        {running ? <Square className="size-3" /> : <Play className="size-3" />} {running ? "Running" : "Run"}\n      </button>\n    </div>\n    <pre className="max-h-[520px] overflow-auto px-4 py-3 font-mono text-[13px] leading-[1.65] text-fg"><code>{code}</code></pre>\n    {output ? <pre className="border-t border-border bg-black/20 px-4 py-3 font-mono text-[12px] leading-5 text-muted whitespace-pre-wrap">{output}</pre> : null}\n  </div>;\n}\n\nexport function Markdown({ text }: { text: string }) {
+function CodeBlock({ code, language }: { code: string; language: string }) {\n  const [running, setRunning] = useState(false);\n  const [output, setOutput] = useState("");\n  const run = async () => {\n    setRunning(true);\n    setOutput("กำลังรัน…");\n    try {\n      const response = await fetch("/api/sandbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: language || "javascript", code }),
+      });
+      const data = await response.json();
+      if (!response.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${response.status}`);
+      setOutput([data?.stdout, data?.stderr].filter(Boolean).join("\n") || `จบการทำงาน (exit ${data?.code ?? 0}, ${data?.durationMs ?? 0}ms)`);
+    } catch (error) {\n      setOutput(`รันไม่สำเร็จ: ${error instanceof Error ? error.message : "unknown error"}`);\n    } finally { setRunning(false); }\n  };\n  return <div className="my-4 overflow-hidden rounded-xl border border-border bg-elevated">\n    <div className="flex items-center justify-between border-b border-border px-3 py-2">\n      <span className="font-mono text-[11px] text-muted">{language || "code"}</span>\n      <button type="button" onClick={run} disabled={running} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-fg disabled:opacity-50">\n        {running ? <Square className="size-3" /> : <Play className="size-3" />} {running ? "Running" : "Run"}\n      </button>\n    </div>\n    <pre className="max-h-[520px] overflow-auto px-4 py-3 font-mono text-[13px] leading-[1.65] text-fg"><code>{code}</code></pre>\n    {output ? <pre className="border-t border-border bg-black/20 px-4 py-3 font-mono text-[12px] leading-5 text-muted whitespace-pre-wrap">{output}</pre> : null}\n  </div>;\n}\n\nexport function Markdown({ text }: { text: string }) {
   const blocks = text.split(/```/);
   const out: ReactNode[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const chunk = blocks[i] ?? "";
     if (i % 2 === 1) {
       const nl = chunk.indexOf("\n");
+      const header = nl === -1 ? "" : chunk.slice(0, nl).trim().toLowerCase();
       const code = nl === -1 ? chunk : chunk.slice(nl + 1).replace(/\n$/, "");
-      out.push(
-        <pre
-          key={`c${i}`}
-          className="my-3 overflow-x-auto rounded-md bg-elevated p-3 font-mono text-xs leading-relaxed text-fg"
-        >
-          <code>{code}</code>
-        </pre>,
-      );
+      const aliases: Record<string, string> = { js: "javascript", jsx: "javascript", ts: "typescript", tsx: "typescript", py: "python", sh: "bash", shell: "bash", rb: "ruby", rs: "rust", csharp: "csharp", "c#": "csharp", cpp: "cpp", java: "java", php: "php", swift: "swift", kotlin: "kotlin", go: "go" };
+      const runtime = aliases[header] || header || "javascript";
+      out.push(<CodeBlock key={`c${i}`} code={code} language={runtime} />);
       continue;
     }
     const lines = chunk.split("\n");
