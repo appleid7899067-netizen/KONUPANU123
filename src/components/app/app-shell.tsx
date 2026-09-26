@@ -166,6 +166,9 @@ export function AppShell() {
           </div>
         </header>
 
+        {searchOpen ? <div className="absolute right-3 top-14 z-50 rounded-xl border border-border bg-surface p-3 shadow-2xl"><input autoFocus placeholder="Search chats" className="h-10 w-72 rounded-lg border border-border bg-bg px-3 text-sm" onChange={(e) => { const q=e.target.value.toLowerCase(); const x=conversations.find(v => (v.title || "").toLowerCase().includes(q)); if (x && q) selectChat(x.id); }} /><button type="button" className="mt-2 text-xs text-muted" onClick={() => setSearchOpen(false)}>Close</button></div> : null}
+        {settingsOpen ? <div className="absolute right-3 top-14 z-50 rounded-xl border border-border bg-surface p-4 shadow-2xl"><p className="text-sm font-medium">Agent Mode</p><p className="mt-1 text-xs text-muted">Workspace, tools and iteration</p><button type="button" className="mt-3 text-xs text-muted" onClick={() => setSettingsOpen(false)}>Close</button></div> : null}
+
         <ChatPanel
           t={t}
           conversation={conversation}
