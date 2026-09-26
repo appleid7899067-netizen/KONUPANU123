@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #09090b;
-  --color-surface: #121214;
-  --color-elevated: #1a1a1e;
+  --color-bg: #0b0b0d;
+  --color-surface: #101012;
+  --color-elevated: #18181c;
   --color-fg: #f4f4f5;
   --color-muted: #8b8d94;
   --color-subtle: #6b6d74;
@@ -35,10 +35,10 @@
   --font-display: "Anuphan", "Noto Sans Thai", "Segoe UI", system-ui, sans-serif;
   --font-sans: "Anuphan", "Noto Sans Thai", "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
+  --text-xs: 0.78rem;
+  --text-sm: 0.92rem;
   --text-base: 1rem;
-  --text-lg: 1.125rem;
+  --text-lg: 1.15rem;
   --text-xl: 1.5rem;
   --text-2xl: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
   --text-3xl: clamp(2.25rem, 1.4rem + 3.2vw, 3.5rem);
