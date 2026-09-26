@@ -36,6 +36,7 @@ type ChatState = {
   addWorkspaceFiles: (files: WorkspaceFile[]) => void;
   selectWorkspaceFile: (path: string | null) => void;
   clearWorkspaceFiles: () => void;
+  hydrateWorkspace: () => void;
   setLocale: (locale: Locale) => void;
   setModels: (models: CatalogModel[]) => void;
   setModelId: (id: string) => void;
@@ -50,6 +51,7 @@ type ChatState = {
 };
 
 const STORAGE_LOCALE = "prism.locale";
+const STORAGE_WORKSPACE = "bossnu.workspace.v1";
 
 function titleFrom(text: string) {
   const t = text.replace(/\s+/g, " ").trim();
@@ -191,10 +193,44 @@ export const useChat = create<ChatState>((set, get) => ({
     const map = new Map(s.workspaceFiles.map((file) => [file.path, file]));
     files.forEach((file) => map.set(file.path, file));
     const next = Array.from(map.values());
-    return { workspaceFiles: next, selectedWorkspaceFile: s.selectedWorkspaceFile ?? next[0]?.path ?? null };
+    const selectedWorkspaceFile = s.selectedWorkspaceFile ?? next[0]?.path ?? null;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_WORKSPACE, JSON.stringify({ files: next, selected: selectedWorkspaceFile }));
+    }
+    return { workspaceFiles: next, selectedWorkspaceFile };
   }),
-  selectWorkspaceFile: (path) => set({ selectedWorkspaceFile: path }),
-  clearWorkspaceFiles: () => set({ workspaceFiles: [], selectedWorkspaceFile: null }),
+  selectWorkspaceFile: (path) => set((s) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_WORKSPACE, JSON.stringify({ files: s.workspaceFiles, selected: path }));
+    }
+    return { selectedWorkspaceFile: path };
+  }),
+  clearWorkspaceFiles: () => {
+    if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_WORKSPACE);
+    set({ workspaceFiles: [], selectedWorkspaceFile: null });
+  },
+  hydrateWorkspace: () => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_WORKSPACE);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { files?: WorkspaceFile[]; selected?: string | null };
+      if (!Array.isArray(parsed.files)) return;
+      const files = parsed.files.filter((file) =>
+        file && typeof file.path === "string" && typeof file.content === "string" &&
+        typeof file.size === "number" && (file.source === "upload" || file.source === "agent") &&
+        typeof file.updatedAt === "number"
+      );
+      set({
+        workspaceFiles: files,
+        selectedWorkspaceFile: parsed.selected && files.some((file) => file.path === parsed.selected)
+          ? parsed.selected
+          : files[0]?.path ?? null,
+      });
+    } catch {
+      // Ignore malformed local workspace data.
+    }
+  },
 }));
 
 export const KV_KEY = "prism.v1.conversations";
