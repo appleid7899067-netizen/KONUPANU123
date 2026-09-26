@@ -28,7 +28,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
   const bottomRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); const [toolMode, setToolMode] = useState<"auto"|"web"|"sandbox"|"code">("auto");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const canSend = draft.trim().length > 0 && !streaming;
@@ -40,14 +40,14 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
     if (distance < 220 || messages.length <= 2) bottomRef.current?.scrollIntoView({ behavior: streaming ? "auto" : "smooth", block: "end" });
   }, [messages.length, streaming]);
 
-  const submit = () => {
+  const submit = async () => {
     if (streaming) return onStop();
     const value = draft.trim();
     if (!value) return;
     setDraft("");
-    const names = files.map((f) => f.name);
+    const names = files.map((f) => f.name); const attached = await Promise.all(files.map(async (f) => `${f.name}:\n${(await f.text()).slice(0, 120000)}`));
     setFiles([]);
-    onSend(names.length ? `${value}\n\n[Attached: ${names.join(", ")}]` : value);
+    onSend(names.length ? `${value}\n\n[Tool mode: ${toolMode}]\n\n[Attached files]\n${attached.join("\n\n")}` : `${value}\n\n[Tool mode: ${toolMode}]`);
   };
 
   return (
@@ -146,13 +146,13 @@ function Composer({ t, draft, setDraft, files, setFiles, menuOpen, setMenuOpen, 
             {menuOpen ? <div className="absolute bottom-10 left-0 z-50 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-2xl">
               <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated"><Paperclip className="size-3.5" /> Upload files</button>
               <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated"><ImagePlus className="size-3.5" /> Add image</button>
-              <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated"><Globe2 className="size-3.5" /> Web search</button>
-              <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated"><TerminalSquare className="size-3.5" /> Sandbox / Bash</button>
-              <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated"><Wrench className="size-3.5" /> Coding tools</button>
+              <button type="button" onClick={() => { setToolMode("web"); setMenuOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated", toolMode === "web" && "bg-elevated")}><Globe2 className="size-3.5" /> Web search</button>
+              <button type="button" onClick={() => { setToolMode("sandbox"); setMenuOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated", toolMode === "sandbox" && "bg-elevated")}><TerminalSquare className="size-3.5" /> Sandbox / Bash</button>
+              <button type="button" onClick={() => { setToolMode("code"); setMenuOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs hover:bg-elevated", toolMode === "code" && "bg-elevated")}><Wrench className="size-3.5" /> Coding tools</button>
             </div> : null}
           </div>
           <button type="button" onClick={() => fileRef.current?.click()} className="hidden rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg sm:block">Attach</button>
-          <button type="button" onClick={onOpenModels} className="max-w-[180px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? "Model"}</button>
+          <span className="max-w-[120px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted">{toolMode === "auto" ? "Auto" : toolMode}</span><button type="button" onClick={onOpenModels} className="max-w-[180px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? "Model"}</button>
         </div>
         <Button type="submit" size="icon-sm" disabled={!streaming && (!draft.trim() || disabled)} aria-label={streaming ? t.stop : t.send} onClick={streaming ? onStop : undefined}>{streaming ? <Square className="size-3.5" /> : <ArrowUp className="size-4" />}</Button>
       </div>
