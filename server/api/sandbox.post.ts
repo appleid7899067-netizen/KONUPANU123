@@ -110,7 +110,20 @@ async function listTree(root: string, dir = ""): Promise<string[]> {
 }
 
 export default defineEventHandler(async (event) => {
-  if ((event.method || "GET").toUpperCase() !== "POST") {
+  const method = (event.method || "GET").toUpperCase();
+  if (method === "GET") {
+    return {
+      ok: true,
+      service: "bossnu-sandbox",
+      status: "ready",
+      endpoint: "/api/sandbox",
+      protocol: "POST",
+      actions: ["exec", "write", "read", "list", "mkdir", "remove", "grep", "hash"],
+      languages: ["javascript", "typescript", "python", "bash", "php"],
+      note: "GET is a health check. Code execution requires POST."
+    };
+  }
+  if (method !== "POST") {
     setResponseStatus(event, 405);
     return { ok: false, error: "Method Not Allowed" };
   }
