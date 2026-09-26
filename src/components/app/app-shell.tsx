@@ -282,8 +282,10 @@ export function AppShell() {
               </div>
             )}
             {workspaceTab === "preview" && (
-              <div className="space-y-3">
-                {selectedWorkspaceFile && selectedWorkspaceFile.toLowerCase().endsWith(".html") ? <div className="overflow-hidden rounded-xl border border-border bg-white"><iframe title="BOSSNU workspace preview" sandbox="" srcDoc={workspaceFiles.find((file) => file.path === selectedWorkspaceFile)?.content ?? ""} className="h-[520px] w-full border-0" /></div> : <div className="rounded-xl border border-border bg-surface p-8 text-center"><p className="text-sm">Preview</p><p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p></div>}
+              <div className="rounded-xl border border-border bg-surface p-8 text-center">
+                <p className="text-sm">Preview</p>
+                <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to preview.</p>
               </div>
+            )}
             )}
           </div>
