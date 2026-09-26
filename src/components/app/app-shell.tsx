@@ -31,6 +31,9 @@ export function AppShell() {
   const setStreaming = useChat((s) => s.setStreaming);
   const workStatus = useChat((s) => s.workStatus);
   const setWorkStatus = useChat((s) => s.setWorkStatus);
+  const workspaceFiles = useChat((s) => s.workspaceFiles);
+  const selectedWorkspaceFile = useChat((s) => s.selectedWorkspaceFile);
+  const selectWorkspaceFile = useChat((s) => s.selectWorkspaceFile);
 
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
@@ -253,10 +256,7 @@ export function AppShell() {
                 </div>
                 <div>
                   <div className="mb-2 flex items-center justify-between"><span className="text-[11px] font-medium uppercase tracking-wide text-muted">Files</span><span className="text-[10px] text-subtle">Session</span></div>
-                  <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
-                    <p className="text-sm text-fg">No files yet</p>
-                    <p className="mt-1 text-xs text-muted">Upload files or ask the agent to create one.</p>
-                  </div>
+                  <div className="overflow-hidden rounded-xl border border-border bg-surface"><div className="max-h-48 divide-y divide-border overflow-y-auto">{workspaceFiles.map((file) => <button key={file.path} type="button" onClick={() => selectWorkspaceFile(file.path)} className={cn("flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-elevated", selectedWorkspaceFile === file.path && "bg-elevated")}><span className="size-2 rounded-sm bg-muted" /><span className="min-w-0 flex-1 truncate">{file.path}</span><span className="text-[10px] text-muted">{Math.ceil(file.size / 1024)} KB</span></button>)}</div>{workspaceFiles.length === 0 ? <div className="px-4 py-10 text-center"><p className="text-sm text-fg">No files yet</p><p className="mt-1 text-xs leading-5 text-muted">Upload files or ask the agent to create one.</p></div> : null}{selectedWorkspaceFile ? <div className="border-t border-border"><div className="px-3 py-2 text-[11px] font-medium">{selectedWorkspaceFile}</div><pre className="max-h-64 overflow-auto border-t border-border bg-bg p-3 text-[10px] leading-5 text-muted">{workspaceFiles.find((file) => file.path === selectedWorkspaceFile)?.content}</pre></div> : null}</div>
                 </div>
               </div>
             ) : workspaceTab === "diff" ? (
