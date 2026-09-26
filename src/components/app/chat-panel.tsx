@@ -59,7 +59,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
         {messages.length === 0 ? (
           <EmptyState signedIn={signedIn} failed={failed} onSignIn={onSignIn} onSend={onSend} />
         ) : (
-          <div className="mx-auto w-full max-w-[760px] px-5 pb-40 pt-10">
+          <div className="mx-auto w-full max-w-[1400px] px-5 pb-40 pt-10">
             {messages.map((message) => <Message key={message.id} message={message} model={model} t={t} streaming={streaming} />)}
             {workStatus ? <AgentActivity status={workStatus} streaming={streaming} /> : null}
             <div ref={bottomRef} />
@@ -67,7 +67,7 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
         )}
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
-        <div className="pointer-events-auto mx-auto w-full max-w-[760px]">
+        <div className="pointer-events-auto mx-auto w-full max-w-[1400px]">
           <Composer
             t={t}
             draft={draft}
@@ -144,7 +144,7 @@ function Message({ message, model, t, streaming }: { message: ChatMessage; model
         <div className="max-w-[82%] rounded-2xl bg-elevated px-4 py-3"><p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p></div>
       ) : (
         <div className="max-w-[100%]">
-          <div className="mb-2 flex items-center gap-2 text-[11px] text-muted"><span className="font-medium text-fg">BOSSNU</span>{model ? <span>{providerLabel(model.provider)}</span> : null}</div>
+          <div className="mb-2 flex items-center gap-2 text-[11px] text-muted"><span className="font-medium text-fg">Bossnu</span>{model ? <span>{providerLabel(model.provider)}</span> : null}</div>
           {empty ? <p className="text-sm text-muted">Working…</p> : <Markdown text={message.content} />}
           {message.error ? <p className="mt-3 text-xs text-danger">{t.error}</p> : null}
           {message.content ? <button type="button" className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg" onClick={async () => { await navigator.clipboard.writeText(message.content); setCopied(true); window.setTimeout(() => setCopied(false), 1200); }}>{copied ? <Check className="size-3" /> : <Copy className="size-3" />}{copied ? t.copied : t.copy}</button> : null}
@@ -178,7 +178,7 @@ function Composer({ t, draft, setDraft, files, setFiles, menuOpen, setMenuOpen, 
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (disabled) return onSignIn(); onSend(); }} className="rounded-[22px] border border-border bg-surface px-3 py-2 shadow-[0_8px_40px_rgba(0,0,0,.16)]">
       {files.length ? <div className="flex flex-wrap gap-1.5 px-1 pt-1">{files.map((file) => <span key={file.name} className="inline-flex max-w-[220px] items-center gap-1.5 rounded-lg bg-elevated px-2 py-1 text-[11px]"><Paperclip className="size-3 text-muted" /><span className="truncate">{file.name}</span><button type="button" onClick={() => setFiles(files.filter((x) => x !== file))}><X className="size-3 text-muted" /></button></span>)}</div> : null}
-      <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder={disabled ? "Sign in to start" : "Ask BOSSNU to build, research, code, or fix something…"} className="max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 outline-none placeholder:text-muted" />
+      <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder={disabled ? "Sign in to start" : "Ask Bossnu to build, research, code, or fix something…"} className="max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 outline-none placeholder:text-muted" />
       <input ref={fileRef} type="file" multiple className="hidden" accept={accept} onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
       <div className="flex items-center justify-between gap-2 px-1 pb-0.5">
         <div className="flex items-center gap-0.5">
