@@ -10,6 +10,7 @@ import { copy } from "@/lib/i18n";
 import { chatModelOptions, pickFeatured, type CatalogModel } from "@/lib/models";
 import { streamChat, type PuterChatMessage } from "@/lib/puter";
 import { useChat } from "@/store/chat";
+import { cn } from "@/lib/utils";
 
 export function AppShell() {
   const { ready, failed, signedIn, user, signIn, signOut, puter } = usePuter();
@@ -41,6 +42,7 @@ export function AppShell() {
   const [searchQuery, setSearchQuery] = useState("");
   const [directMode, setDirectMode] = useState(false);
   const [workspaceNotice, setWorkspaceNotice] = useState("");
+  const [diffScope, setDiffScope] = useState<"turn" | "branch">("turn");
   const cancelRef = useRef(false);
 
   const featured = useMemo(() => pickFeatured(models), [models]);
@@ -260,11 +262,11 @@ export function AppShell() {
             ) : workspaceTab === "diff" ? (
               <div className="space-y-3">
                 <div className="flex rounded-lg bg-elevated p-1">
-                  <span className="flex-1 rounded-md bg-surface px-3 py-2 text-center text-[11px]">Last turn</span>
-                  <span className="flex-1 px-3 py-2 text-center text-[11px] text-muted">Full branch</span>
+                  <button type="button" onClick={() => setDiffScope("turn")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "turn" && "bg-surface")}>Last turn</button>
+                  <button type="button" onClick={() => setDiffScope("branch")} className={cn("flex-1 rounded-md px-3 py-2 text-center text-[11px]", diffScope === "branch" && "bg-surface")}>Full branch</button>
                 </div>
                 <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                  <p className="text-sm">No changes yet</p>
+                  <p className="text-sm">{diffScope === "turn" ? "No changes in this turn yet" : "No branch changes yet"}</p>
                   <p className="mt-1 text-xs leading-5 text-muted">Code changes will appear here as the agent works.</p>
                 </div>
               </div>
