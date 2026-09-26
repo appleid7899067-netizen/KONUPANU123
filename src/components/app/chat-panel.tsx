@@ -252,7 +252,7 @@ function Composer({
         <Button type="submit" size="icon-sm" disabled={!streaming && !canSend} aria-label={streaming ? t.stop : t.send} variant={streaming ? "secondary" : "default"}>
           {streaming ? <Square className="size-3.5" /> : <ArrowUp className="size-4" />}
         </Button>
-      </div>/div>
+      </div>
     </form>
   );
 }
