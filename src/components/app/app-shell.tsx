@@ -317,7 +317,7 @@ export function AppShell() {
             )}
           </div>
         </aside>
-      ) : null
+      ) : null}
 
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
         <SheetContent side="left" title={t.app} className="p-0">
