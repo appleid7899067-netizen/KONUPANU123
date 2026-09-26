@@ -12,7 +12,7 @@ import { streamChat, type PuterChatMessage } from "@/lib/puter";
 import { useChat } from "@/store/chat";
 import { cn } from "@/lib/utils";
 import { WorkspacePreview } from "@/components/app/workspace-preview";
-import { applyAgentActions, buildAgentPlannerPrompt, executeWebFetches, parseAgentPlan } from "@/lib/agent-runtime";
+import { applyAgentActions, buildAgentPlannerPrompt, executeSandboxActions, executeWebFetches, parseAgentPlan } from "@/lib/agent-runtime";
 
 export function AppShell() {
   const { ready, failed, signedIn, user, signIn, signOut, puter } = usePuter();
@@ -122,7 +122,9 @@ export function AppShell() {
 
               setWorkStatus(locale === "th" ? "กำลังตรวจผลการทำงาน…" : "Verifying tool results…");
               const webEvidence = await executeWebFetches(plan);
-              const evidence = [...applied.evidence, ...webEvidence];
+              const sandboxEvidence = await executeSandboxActions(plan, applied.files.map((file) => ({ path: file.path, content: file.content })));
+              if (sandboxEvidence.length) setWorkStatus(locale === "th" ? "กำลังตรวจผลจาก Sandbox…" : "Verifying sandbox output…");
+              const evidence = [...applied.evidence, ...webEvidence, ...sandboxEvidence];
               const verification = plan.verify.length ? `Requested verification:\n- ${plan.verify.join("\n- ")}` : "";
               const finalPrompt = [
                 "You are BOSSNU completing an Agent Mode task.",
@@ -281,15 +283,19 @@ export function AppShell() {
     }
   };
 
-  const downloadWorkspace = () => {
-    const payload = JSON.stringify({ app: "BOSSNU", exportedAt: new Date().toISOString(), conversation }, null, 2);
-    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+  const downloadWorkspace = async () => {
+    if (!workspaceFiles.length) {
+      setWorkspaceNotice("Workspace ว่าง");
+      return;
+    }
+    const zip = buildStoreZip(workspaceFiles.map((file) => ({ path: file.path, content: file.content })));
+    const url = URL.createObjectURL(new Blob([zip], { type: "application/zip" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `bossnu-workspace-${conversation?.id ?? "session"}.json`;
+    a.download = `bossnu-workspace-${conversation?.id ?? "session"}.zip`;
     a.click();
     URL.revokeObjectURL(url);
-    setWorkspaceNotice("Workspace exported");
+    setWorkspaceNotice(`Exported ${workspaceFiles.length} files`);
     window.setTimeout(() => setWorkspaceNotice(""), 1800);
   };
 
@@ -457,4 +463,80 @@ export function AppShell() {
       </Sheet>
     </div>
   );
+}
+
+
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i]!;
+    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function u16(n: number) {
+  return new Uint8Array([n & 255, (n >>> 8) & 255]);
+}
+
+function u32(n: number) {
+  return new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]);
+}
+
+function buildStoreZip(files: Array<{ path: string; content: string }>) {
+  const encoder = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  for (const file of files) {
+    const name = encoder.encode(file.path);
+    const data = encoder.encode(file.content);
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + name.length + data.length);
+    const view = new DataView(local.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0x800, true);
+    view.setUint32(14, crc, true);
+    view.setUint32(18, data.length, true);
+    view.setUint32(22, data.length, true);
+    view.setUint16(26, name.length, true);
+    local.set(name, 30);
+    local.set(data, 30 + name.length);
+    chunks.push(local);
+
+    const c = new Uint8Array(46 + name.length);
+    const cv = new DataView(c.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x800, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, name.length, true);
+    cv.setUint32(42, offset, true);
+    c.set(name, 46);
+    central.push(c);
+    offset += local.length;
+  }
+  const centralOffset = offset;
+  const centralSize = central.reduce((n, item) => n + item.length, 0);
+  chunks.push(...central);
+  const end = new Uint8Array(22);
+  const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, files.length, true);
+  ev.setUint16(10, files.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, centralOffset, true);
+  chunks.push(end);
+  const total = chunks.reduce((n, item) => n + item.length, 0);
+  const output = new Uint8Array(total);
+  let cursor = 0;
+  for (const item of chunks) {
+    output.set(item, cursor);
+    cursor += item.length;
+  }
+  return output;
 }
