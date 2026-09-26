@@ -28,6 +28,8 @@ export function AppShell() {
   const appendUser = useChat((s) => s.appendUser);
   const patchAssistant = useChat((s) => s.patchAssistant);
   const setStreaming = useChat((s) => s.setStreaming);
+  const workStatus = useChat((s) => s.workStatus);
+  const setWorkStatus = useChat((s) => s.setWorkStatus);
 
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
@@ -63,29 +65,58 @@ export function AppShell() {
       .filter((m) => m.id !== assistant.id && m.content)
       .map((m) => ({ role: m.role, content: m.content }));
     try {
-      let assembled = "";
-      await streamChat({
-        puter,
-        messages: history,
-        model: opts.model,
-        provider: opts.provider,
-        isCancelled: () => cancelRef.current,
-        onDelta: (chunk) => {
-          assembled += chunk;
-          patchAssistant(convo.id, assistant.id, { content: assembled });
-        },
-      });
-      if (!assembled && !cancelRef.current) {
+      const fallbackPool = [
+        selected,
+        ...featured,
+        ...models.filter((m) => m.id !== selected?.id && m.provider !== "openrouter"),
+      ].filter(Boolean);
+      let lastError: unknown = null;
+      let succeeded = false;
+
+      for (let attempt = 0; attempt < Math.min(4, fallbackPool.length); attempt++) {
+        if (cancelRef.current) break;
+        const candidate = fallbackPool[attempt]!;
+        const candidateOpts = chatModelOptions(candidate);
+        setWorkStatus(
+          attempt === 0
+            ? (locale === "th" ? "กำลังเชื่อมต่อโมเดล…" : "Connecting to model…")
+            : (locale === "th" ? `โมเดลไม่พร้อม กำลังลองสำรอง ${attempt}/3…` : `Model unavailable, trying fallback ${attempt}/3…`),
+        );
+        try {
+          let assembled = "";
+          await streamChat({
+            puter,
+            messages: history,
+            model: candidateOpts.model,
+            provider: candidateOpts.provider,
+            isCancelled: () => cancelRef.current,
+            onDelta: (chunk) => {
+              assembled += chunk;
+              patchAssistant(convo.id, assistant.id, { content: assembled, modelId: candidate.id });
+            },
+          });
+          if (assembled.trim()) {
+            succeeded = true;
+            setWorkStatus(locale === "th" ? "เรียบร้อย ✓" : "Complete ✓");
+            break;
+          }
+          lastError = new Error("empty response");
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      if (!succeeded && !cancelRef.current) {
+        const message = lastError instanceof Error ? lastError.message : t.error;
         patchAssistant(convo.id, assistant.id, {
-          content: locale === "th" ? "โมเดลนี้ไม่ได้ส่งข้อความกลับมา" : "The model returned an empty reply.",
+          content: locale === "th" ? `โมเดลที่เลือกใช้งานไม่ได้ และโมเดลสำรองก็ไม่ตอบกลับ: ${message}` : `The selected model and fallbacks failed: ${message}`,
           error: true,
         });
+        setWorkStatus(locale === "th" ? "เกิดข้อผิดพลาด ✕" : "Request failed ✕");
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t.error;
-      patchAssistant(convo.id, assistant.id, { content: message, error: true });
     } finally {
       setStreaming(false);
+      window.setTimeout(() => setWorkStatus(""), 900);
     }
   };
 
@@ -247,6 +278,7 @@ export function AppShell() {
           onSignIn={() => void signIn()}
           onOpenModels={() => setModelsOpen(true)}
           hero={hero}
+          workStatus={workStatus}
         />
       </div>
 
