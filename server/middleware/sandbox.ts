@@ -1,3 +1,4 @@
+import { defineEventHandler, readBody, setResponseStatus } from "h3";
 import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
