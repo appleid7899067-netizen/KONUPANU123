@@ -35,7 +35,7 @@ export function AppShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [workspaceTab, setWorkspaceTab] = useState<"workspace" | "diff" | "checks" | "preview">("workspace");
-  const [modeOpen, setModeOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false); const [searchOpen, setSearchOpen] = useState(false); const [settingsOpen, setSettingsOpen] = useState(false);
   const cancelRef = useRef(false);
 
   const featured = useMemo(() => pickFeatured(models), [models]);
@@ -160,8 +160,8 @@ export function AppShell() {
             ) : null}
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="Search"><Search className="size-4" /></Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Settings"><Settings2 className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Search" onClick={() => setSearchOpen(true)}><Search className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Settings" onClick={() => setSettingsOpen(true)}><Settings2 className="size-4" /></Button>
             <Button variant={workspaceOpen ? "secondary" : "ghost"} size="icon-sm" aria-label="Workspace" onClick={() => setWorkspaceOpen((v) => !v)}><PanelRight className="size-4" /></Button>
           </div>
         </header>
