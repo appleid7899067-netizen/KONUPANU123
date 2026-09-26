@@ -28,6 +28,7 @@ type ChatState = {
   conversations: Conversation[];
   activeId: string | null;
   streaming: boolean;
+  workStatus: string;
   setLocale: (locale: Locale) => void;
   setModels: (models: CatalogModel[]) => void;
   setModelId: (id: string) => void;
@@ -38,6 +39,7 @@ type ChatState = {
   appendUser: (content: string) => { conversation: Conversation; user: ChatMessage; assistant: ChatMessage };
   patchAssistant: (conversationId: string, messageId: string, patch: Partial<ChatMessage>) => void;
   setStreaming: (v: boolean) => void;
+  setWorkStatus: (status: string) => void;
 };
 
 const STORAGE_LOCALE = "prism.locale";
@@ -55,6 +57,7 @@ export const useChat = create<ChatState>((set, get) => ({
   conversations: [],
   activeId: null,
   streaming: false,
+  workStatus: "",
 
   setLocale: (locale) => {
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_LOCALE, locale);
@@ -173,7 +176,8 @@ export const useChat = create<ChatState>((set, get) => ({
     }));
   },
 
-  setStreaming: (streaming) => set({ streaming }),
+  setStreaming: (streaming) => set({ streaming, workStatus: streaming ? get().workStatus : "" }),
+  setWorkStatus: (workStatus) => set({ workStatus }),
 }));
 
 export const KV_KEY = "prism.v1.conversations";
