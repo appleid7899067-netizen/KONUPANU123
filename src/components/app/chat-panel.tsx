@@ -177,6 +177,7 @@ function Composer({
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [toolMode, setToolMode] = useState<"auto" | "web" | "sandbox" | "agent">("auto");
   const fileRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -240,14 +241,15 @@ function Composer({
               <div className="absolute bottom-10 left-0 z-30 w-52 rounded-lg border border-border bg-surface p-1.5 shadow-xl">
                 <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><Paperclip className="size-3.5" /> Upload files</button>
                 <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><ImagePlus className="size-3.5" /> Add image</button>
-                <button type="button" onClick={() => setToolsOpen(false)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><Globe2 className="size-3.5" /> Web search</button>
-                <button type="button" onClick={() => setToolsOpen(false)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><TerminalSquare className="size-3.5" /> Sandbox / Bash</button>
-                <button type="button" onClick={() => setToolsOpen(false)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-fg"><Wrench className="size-3.5" /> Agent tools</button>
+                <button type="button" onClick={() => { setToolMode("web"); setToolsOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs hover:bg-elevated", toolMode === "web" ? "text-fg" : "text-muted")}><Globe2 className="size-3.5" /> Web search{toolMode === "web" ? <Check className="ml-auto size-3" /> : null}</button>
+                <button type="button" onClick={() => { setToolMode("sandbox"); setToolsOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs hover:bg-elevated", toolMode === "sandbox" ? "text-fg" : "text-muted")}><TerminalSquare className="size-3.5" /> Sandbox / Bash{toolMode === "sandbox" ? <Check className="ml-auto size-3" /> : null}</button>
+                <button type="button" onClick={() => { setToolMode("agent"); setToolsOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs hover:bg-elevated", toolMode === "agent" ? "text-fg" : "text-muted")}><Wrench className="size-3.5" /> Agent tools{toolMode === "agent" ? <Check className="ml-auto size-3" /> : null}</button>
               </div>
             ) : null}
           </div>
           <button type="button" onClick={() => fileRef.current?.click()} className="hidden items-center gap-1.5 rounded-sm px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg sm:flex"><FilePlus2 className="size-3.5" /> Attach</button>
           <button type="button" onClick={onOpenModels} className="max-w-[190px] truncate rounded-sm px-2 py-1.5 text-left text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? t.selectModel}</button>
+          {toolMode !== "auto" ? <button type="button" onClick={() => setToolMode("auto")} className="hidden max-w-[140px] truncate rounded-full bg-elevated px-2 py-1 text-[10px] text-muted hover:text-fg sm:inline-flex">{toolMode === "web" ? "Web search" : toolMode === "sandbox" ? "Sandbox / Bash" : "Agent tools"} ×</button> : null}
         </div>
         <Button type="submit" size="icon-sm" disabled={!streaming && !canSend} aria-label={streaming ? t.stop : t.send} variant={streaming ? "secondary" : "default"}>
           {streaming ? <Square className="size-3.5" /> : <ArrowUp className="size-4" />}
