@@ -12,6 +12,7 @@ import { streamChat, type PuterChatMessage } from "@/lib/puter";
 import { useChat } from "@/store/chat";
 import { cn } from "@/lib/utils";
 import { WorkspacePreview } from "@/components/app/workspace-preview";
+import { applyAgentActions, buildAgentPlannerPrompt, executeWebFetches, parseAgentPlan } from "@/lib/agent-runtime";
 
 export function AppShell() {
   const { ready, failed, signedIn, user, signIn, signOut, puter } = usePuter();
@@ -36,6 +37,7 @@ export function AppShell() {
   const selectedWorkspaceFile = useChat((s) => s.selectedWorkspaceFile);
   const selectWorkspaceFile = useChat((s) => s.selectWorkspaceFile);
   const hydrateWorkspace = useChat((s) => s.hydrateWorkspace);
+  const addWorkspaceFiles = useChat((s) => s.addWorkspaceFiles);
 
   const [navOpen, setNavOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
@@ -72,10 +74,7 @@ export function AppShell() {
   };
 
   const send = async (text: string) => {
-    if (!signedIn) {
-      await signIn();
-      return;
-    }
+    if (!signedIn) { await signIn(); return; }
     if (!puter || streaming) return;
 
     const { conversation: convo, assistant } = appendUser(text);
@@ -95,15 +94,72 @@ export function AppShell() {
       for (let attempt = 0; attempt < Math.min(4, pool.length); attempt++) {
         if (cancelRef.current) break;
         const candidate = pool[attempt]!;
-        setWorkStatus(
-          attempt === 0
-            ? locale === "th" ? "กำลังทำงาน…" : "Working…"
-            : locale === "th" ? `กำลังลองโมเดลสำรอง ${attempt}/3…` : `Trying fallback ${attempt}/3…`,
-        );
-
+        setWorkStatus(attempt === 0
+          ? locale === "th" ? (directMode ? "กำลังตอบ…" : "กำลังวิเคราะห์เป้าหมาย…") : (directMode ? "Responding…" : "Analyzing goal…")
+          : locale === "th" ? `กำลังลองโมเดลสำรอง ${attempt}/3…` : `Trying fallback ${attempt}/3…`);
         try {
-          let assembled = "";
           const opts = chatModelOptions(candidate);
+
+          if (!directMode) {
+            let planRaw = "";
+            await streamChat({
+              puter,
+              messages: [
+                { role: "system", content: "You are BOSSNU Agent planner. Return only the JSON plan requested by the user. Do not pretend to execute tools." },
+                { role: "user", content: buildAgentPlannerPrompt(text, workspaceFiles.map((file) => ({ path: file.path, content: file.content }))) },
+              ],
+              model: opts.model,
+              provider: opts.provider,
+              isCancelled: () => cancelRef.current,
+              onDelta: (chunk) => { planRaw += chunk; },
+            });
+
+            const plan = parseAgentPlan(planRaw);
+            if (plan) {
+              setWorkStatus(locale === "th" ? "กำลังลงมือแก้ไขไฟล์…" : "Applying workspace changes…");
+              const applied = applyAgentActions(plan, workspaceFiles);
+              if (applied.writes.length || applied.evidence.some((item) => item.startsWith("deleted"))) addWorkspaceFiles(applied.files);
+
+              setWorkStatus(locale === "th" ? "กำลังตรวจผลการทำงาน…" : "Verifying tool results…");
+              const webEvidence = await executeWebFetches(plan);
+              const evidence = [...applied.evidence, ...webEvidence];
+              const verification = plan.verify.length ? `Requested verification:\n- ${plan.verify.join("\n- ")}` : "";
+              const finalPrompt = [
+                "You are BOSSNU completing an Agent Mode task.",
+                "Use the evidence below. Do not claim actions that are not evidenced.",
+                "If a requested capability was not available, say so plainly.",
+                `User goal: ${text}`,
+                `Plan goal: ${plan.goal}`,
+                `Evidence:\n- ${evidence.join("\n- ")}`,
+                ...applied.reads,
+                ...webEvidence,
+                verification,
+                "Reply naturally in Thai unless the user clearly used another language. Be concise and state exactly what changed and what remains.",
+              ].join("\n\n");
+
+              let assembled = "";
+              await streamChat({
+                puter,
+                messages: [{ role: "system", content: "You are BOSSNU. Report verified work only." }, { role: "user", content: finalPrompt }],
+                model: opts.model,
+                provider: opts.provider,
+                isCancelled: () => cancelRef.current,
+                onDelta: (chunk) => {
+                  assembled += chunk;
+                  patchAssistant(convo.id, assistant.id, { content: assembled, modelId: candidate.id });
+                },
+              });
+              if (assembled.trim()) {
+                done = true;
+                setWorkStatus(locale === "th" ? "ตรวจแล้ว • เรียบร้อย ✓" : "Verified • Done ✓");
+                break;
+              }
+            } else {
+              setWorkStatus(locale === "th" ? "แผน Agent ไม่ถูกต้อง กำลังตอบแบบตรง…" : "Agent plan invalid, switching to direct response…");
+            }
+          }
+
+          let assembled = "";
           await streamChat({
             puter,
             messages: history,
@@ -121,22 +177,17 @@ export function AppShell() {
             break;
           }
           lastError = new Error("empty response");
-        } catch (error) {
-          lastError = error;
-        }
+        } catch (error) { lastError = error; }
       }
 
       if (!done && !cancelRef.current) {
         const message = lastError instanceof Error ? lastError.message : t.error;
-        patchAssistant(convo.id, assistant.id, {
-          content: locale === "th" ? `งานยังไม่สำเร็จ: ${message}` : `The task did not complete: ${message}`,
-          error: true,
-        });
+        patchAssistant(convo.id, assistant.id, { content: locale === "th" ? `งานยังไม่สำเร็จ: ${message}` : `The task did not complete: ${message}`, error: true });
         setWorkStatus(locale === "th" ? "เกิดข้อผิดพลาด ✕" : "Failed ✕");
       }
     } finally {
       setStreaming(false);
-      window.setTimeout(() => setWorkStatus(""), 1000);
+      window.setTimeout(() => setWorkStatus(""), 1600);
     }
   };
 
