@@ -293,8 +293,7 @@ export function AppShell() {
                   <p className="mt-1 text-[11px] text-muted">No repository CI endpoint is configured, so BOSSNU will not invent a pass/fail result.</p>
                 </div>
               </div>
-            ) : (
-              {selectedWorkspaceFile?.toLowerCase().endsWith(".html") ? (
+            ) : selectedWorkspaceFile?.toLowerCase().endsWith(".html") ? (
                 <div className="overflow-hidden rounded-xl border border-border bg-white">
                   <iframe
                     title="BOSSNU workspace preview"
@@ -308,7 +307,7 @@ export function AppShell() {
                   <p className="text-sm">Preview</p>
                   <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to render a live local preview.</p>
                 </div>
-              )}
+              )
             )}
           </div>
         </aside>
