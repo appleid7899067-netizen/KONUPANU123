@@ -169,8 +169,14 @@ export function AppShell() {
       });
       const candidates = (tree.tree ?? [])
         .filter((item) => item.type === "blob")
-        .filter((item) => !/(^|\\/)(node_modules|\\.git|dist|build|\\.next|\\.output|coverage)(\\/|$)/.test(item.path))
-        .filter((item) => !/\\.(png|jpe?g|gif|webp|ico|pdf|zip|woff2?|ttf|eot|mp4|webm|mov|mp3|wav|wasm)$/i.test(item.path))
+        .filter((item) => {
+          const parts = item.path.split("/");
+          return !parts.some((part) => ["node_modules", ".git", "dist", "build", ".next", ".output", "coverage"].includes(part));
+        })
+        .filter((item) => {
+          const lower = item.path.toLowerCase();
+          return ![".png",".jpg",".jpeg",".gif",".webp",".ico",".pdf",".zip",".woff",".woff2",".ttf",".eot",".mp4",".webm",".mov",".mp3",".wav",".wasm"].some((ext) => lower.endsWith(ext));
+        })
         .filter((item) => (item.size ?? 0) <= 180_000)
         .slice(0, 30);
       const files = [];
