@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, ChevronRight, Copy, Globe2, ImagePlus, Paperclip, Plus, Square, TerminalSquare, Wrench, X } from "lucide-react";
+import { ArrowUp, Brain, Check, ChevronRight, Copy, Globe2, ImagePlus, Mic, Paperclip, Plus, Square, TerminalSquare, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,8 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
   const [files, setFiles] = useState<File[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolMode, setToolMode] = useState<ToolMode>("auto");
+  const [thinking, setThinking] = useState(false);
+  const [listening, setListening] = useState(false);
   const addWorkspaceFiles = useChat((s) => s.addWorkspaceFiles);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +88,10 @@ export function ChatPanel({ t, conversation, model, streaming, signedIn, failed,
             modelName={model?.name}
             toolMode={toolMode}
             setToolMode={setToolMode}
+            thinking={thinking}
+            setThinking={setThinking}
+            listening={listening}
+            setListening={setListening}
           />
         </div>
       </div>
@@ -112,14 +118,14 @@ function AgentActivity({ status, streaming }: { status: string; streaming: boole
 }
 
 function EmptyState({ signedIn, failed, onSignIn, onSend }: { signedIn: boolean; failed: boolean; onSignIn: () => void; onSend: (value: string) => void }) {
-  const prompts = ["Create a landing page", "Build a dashboard", "Make a game", "Design to code", "Build a fullstack app", "Launch a storefront"];
+  const prompts = ["สร้าง Landing Page", "สร้าง Dashboard", "สร้างเกม", "แปลง Design เป็น Code", "สร้าง Full-stack App", "สร้าง Storefront"];
   return (
     <div className="flex min-h-full items-center justify-center px-5 pb-36 pt-8">
       <div className="w-full max-w-[760px]">
         <div className="mb-8 text-center">
           <MarkLarge />
-          <h1 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">Experience the frontier</h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted">BOSSNU Agent Mode can plan work, use tools, write files, run code, search the web and iterate with you.</p>
+          <h1 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">Build with Bossnu</h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted">Bossnu วางแผน ลงมือ เขียนไฟล์ รันโค้ด ค้นเว็บ และตรวจผลให้เป็นงานเดียว</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {prompts.map((prompt) => <button key={prompt} type="button" onClick={() => onSend(prompt)} className="rounded-xl border border-border bg-surface/70 px-3 py-3 text-left text-xs text-muted transition hover:bg-elevated hover:text-fg">{prompt}</button>)}
@@ -172,9 +178,24 @@ function Composer({ t, draft, setDraft, files, setFiles, menuOpen, setMenuOpen, 
   modelName?: string;
   toolMode: ToolMode;
   setToolMode: (mode: ToolMode) => void;
+  thinking: boolean;
+  setThinking: (v: boolean) => void;
+  listening: boolean;
+  setListening: (v: boolean) => void;
 }) {
   const disabled = !signedIn;
   const accept = ".png,.webp,.jpg,.jpeg,.pdf,.gif,.txt,.md,.csv,.html,.xml,.css,.js,.json";
+  const startVoice = () => {
+    const Recognition = (window as typeof window & { SpeechRecognition?: new () => { lang: string; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onend: () => void; start: () => void; stop: () => void } }).SpeechRecognition;
+    if (!Recognition) return;
+    if (listening) { setListening(false); return; }
+    const recognition = new Recognition();
+    recognition.lang = "th-TH";
+    recognition.onresult = (e) => setDraft(`${draft} ${e.results[0]?.[0]?.transcript ?? ""}`.trim());
+    recognition.onend = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  };
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (disabled) return onSignIn(); onSend(); }} className="rounded-[22px] border border-border bg-surface px-3 py-2 shadow-[0_8px_40px_rgba(0,0,0,.16)]">
       {files.length ? <div className="flex flex-wrap gap-1.5 px-1 pt-1">{files.map((file) => <span key={file.name} className="inline-flex max-w-[220px] items-center gap-1.5 rounded-lg bg-elevated px-2 py-1 text-[11px]"><Paperclip className="size-3 text-muted" /><span className="truncate">{file.name}</span><button type="button" onClick={() => setFiles(files.filter((x) => x !== file))}><X className="size-3 text-muted" /></button></span>)}</div> : null}
@@ -194,6 +215,8 @@ function Composer({ t, draft, setDraft, files, setFiles, menuOpen, setMenuOpen, 
           </div>
           <button type="button" onClick={() => fileRef.current?.click()} className="hidden rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg sm:block">Attach</button>
           <span className="max-w-[120px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted">{toolMode === "auto" ? "Auto" : toolMode}</span>
+          <button type="button" onClick={() => setThinking(!thinking)} className={cn("inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg", thinking && "bg-elevated text-fg")}><Brain className="size-3" />{thinking ? "Thinking" : "Instant"}</button>
+          <button type="button" onClick={startVoice} className={cn("inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg", listening && "bg-elevated text-fg")} aria-label="Voice input"><Mic className="size-3" />{listening ? "Listening" : "Voice"}</button>
           <button type="button" onClick={onOpenModels} className="max-w-[180px] truncate rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-elevated hover:text-fg">{modelName ?? "Model"}</button>
         </div>
         <Button type="submit" size="icon-sm" disabled={!streaming && (!draft.trim() || disabled)} aria-label={streaming ? t.stop : t.send} onClick={streaming ? onStop : undefined}>{streaming ? <Square className="size-3.5" /> : <ArrowUp className="size-4" />}</Button>
