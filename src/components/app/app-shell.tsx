@@ -11,6 +11,7 @@ import { chatModelOptions, pickFeatured, type CatalogModel } from "@/lib/models"
 import { streamChat, type PuterChatMessage } from "@/lib/puter";
 import { useChat } from "@/store/chat";
 import { cn } from "@/lib/utils";
+import { WorkspacePreview } from "@/components/app/workspace-preview";
 
 export function AppShell() {
   const { ready, failed, signedIn, user, signIn, signOut, puter } = usePuter();
@@ -282,10 +283,7 @@ export function AppShell() {
               </div>
             )}
             {workspaceTab === "preview" && (
-              <div className="rounded-xl border border-border bg-surface p-8 text-center">
-                <p className="text-sm">Preview</p>
-                <p className="mt-1 text-xs leading-5 text-muted">Select an HTML workspace file to preview.</p>
-              </div>
+              <WorkspacePreview file={workspaceFiles.find((file) => file.path === selectedWorkspaceFile)} />
             )}
           </div>
         </aside>
