@@ -32,8 +32,8 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius: 12px;
-  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-  --font-sans: "Anuphan", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Anuphan", "Noto Sans Thai", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Anuphan", "Noto Sans Thai", "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -60,6 +60,31 @@
     color: var(--color-fg);
     font-family: var(--font-sans);
     font-feature-settings: "ss01" on;
+    letter-spacing: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    font-family: inherit;
+  }
+
+  button,
+  input,
+  textarea,
+  select,
+  option {
+    font: inherit;
+    letter-spacing: inherit;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+    font-feature-settings: normal;
+    letter-spacing: 0;
   }
 
   button:not(:disabled),
